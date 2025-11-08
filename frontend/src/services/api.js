@@ -1,0 +1,169 @@
+import axios from 'axios';
+
+// -------------------- Backend URL --------------------
+// Read from .env file: VITE_API_URL=http://localhost:5000/api
+// If .env doesn't exist, defaults to http://localhost:5000/api
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+// Debug: Log API URL (remove in production)
+if (import.meta.env.DEV) {
+  console.log('🔗 API Base URL:', API_URL);
+}
+
+// Create axios instance
+const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 8000, // 8 second timeout (reduced for faster error feedback)
+});
+
+// -------------------- Add token to requests --------------------
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// -------------------- Handle response errors --------------------
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
+      console.error('Network Error:', {
+        message: 'Cannot connect to backend server',
+        url: error.config?.url,
+        baseURL: error.config?.baseURL,
+        suggestion: 'Make sure backend is running on http://localhost:5000',
+      });
+    }
+
+    if (error.code === 'ERR_CORS') {
+      console.error('CORS Error:', {
+        message: 'CORS policy blocked the request',
+        suggestion: 'Check backend CORS configuration',
+      });
+    }
+
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+// -------------------- API Definitions --------------------
+
+// Auth
+export const authAPI = {
+  register: (data) => api.post('/auth/register', data),
+  login: (data) => api.post('/auth/login', data),
+  getCurrentUser: () => api.get('/auth/me'),
+};
+
+// Patient
+export const patientAPI = {
+  register: (data) => api.post('/patients/register', data),
+  login: (data) => api.post('/patients/login', data),
+  getProfile: () => api.get('/patients/me'),
+  updateProfile: (data) => api.put('/patients/me', data),
+  getAll: () => api.get('/patients'),
+  getById: (id) => api.get(`/patients/${id}`),
+};
+
+// Doctor
+export const doctorAPI = {
+  register: (data) => api.post('/doctors/register', data),
+  login: (data) => api.post('/doctors/login', data),
+  getProfile: () => api.get('/doctors/me'),
+  updateProfile: (data) => api.put('/doctors/me', data),
+  getAll: () => api.get('/doctors'),
+  getById: (id) => api.get(`/doctors/${id}`),
+  getBySpecialization: (specialization, limit = 5, sortBy = 'rating') => 
+    api.get(`/doctors/specialization/${encodeURIComponent(specialization)}?limit=${limit}&sortBy=${sortBy}`),
+  getSuggestedDoctors: (specialization, limit = 5) => 
+    api.get(`/doctors/suggest/${encodeURIComponent(specialization)}?limit=${limit}&sortBy=rating`),
+};
+
+// Appointment
+export const appointmentAPI = {
+  book: (data) => api.post('/appointments', data),
+  getMyAppointments: () => api.get('/appointments/my'),
+  updateStatus: (id, data) => api.put(`/appointments/${id}`, data),
+  delete: (id) => api.delete(`/appointments/${id}`),
+};
+
+// Report
+export const reportAPI = {
+  upload: (formData) =>
+    api.post('/reports', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  getMyReports: () => api.get('/reports/my'),
+  getByPatient: (patientId) => api.get(`/reports/patient/${patientId}`),
+  getById: (id) => api.get(`/reports/${id}`),
+  delete: (id) => api.delete(`/reports/${id}`),
+  generatePDF: () => api.post('/reports/generate', {}, { responseType: 'blob' }),
+};
+
+// Feedback
+export const feedbackAPI = {
+  add: (data) => api.post('/feedback', data),
+  getAll: () => api.get('/feedback'),
+  getForDoctor: (doctorId) => api.get(`/feedback/${doctorId}`),
+  getMyFeedback: () => api.get('/feedback/my/feedbacks'),
+  delete: (id) => api.delete(`/feedback/${id}`),
+};
+
+// Notification
+export const notificationAPI = {
+  create: (data) => api.post('/notifications', data),
+  getMyNotifications: () => api.get('/notifications/my'),
+  markAsRead: (id) => api.patch(`/notifications/${id}/read`),
+  delete: (id) => api.delete(`/notifications/${id}`),
+  sendWhatsAppToPatient: (patientId, data) =>
+    api.post(`/notifications/patient/${patientId}/whatsapp`, data),
+  sendAppointmentReminder: (appointmentId, data) =>
+    api.post(`/notifications/appointment/${appointmentId}/reminder`, data),
+  sendBulkReminders: (data) => api.post('/notifications/appointments/bulk-reminders', data),
+  sendUpcomingReminders: (data) =>
+    api.post('/notifications/appointments/upcoming-reminders', data),
+};
+
+// AI
+export const aiAPI = {
+  analyze: (data) => api.post('/ai/analyze', data),
+  getMyResults: () => api.get('/ai/my-results'),
+  getResultsByPatient: (patientId) => api.get(`/ai/results/${patientId}`),
+};
+
+// Gamification
+export const gamificationAPI = {
+  getProfile: () => api.get('/gamification/me'),
+  awardPoints: (data) => api.post('/gamification/award-points', data),
+  logActivity: (data) => api.post('/gamification/log-activity', data),
+  getLeaderboard: (limit) => api.get(`/gamification/leaderboard?limit=${limit || 10}`),
+  getAchievements: () => api.get('/gamification/achievements'),
+  createGoal: (data) => api.post('/gamification/goals', data),
+  updateGoalProgress: (goalId, data) =>
+    api.patch(`/gamification/goals/${goalId}/progress`, data),
+  redeemReward: (data) => api.post('/gamification/redeem-reward', data),
+  getRewards: () => api.get('/gamification/rewards'),
+};
+
+// ABHA
+export const abhaAPI = {
+  generate: (data) => api.post('/abha/generate', data),
+  verifyOTP: (data) => api.post('/abha/verify-otp', data),
+  shareRecords: (data) => api.post('/abha/share-records', data),
+  fetchRecords: (consentId) => api.get(`/abha/fetch-records/${consentId}`),
+};
+
+export default api;
