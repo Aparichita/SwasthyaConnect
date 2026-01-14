@@ -19,8 +19,7 @@ const validate = (req, res, next) => {
  */
 export const createFeedbackValidator = [
   body("message")
-    .notEmpty()
-    .withMessage("Feedback message is required")
+    .optional()
     .isString()
     .withMessage("Message must be a string"),
   body("rating")

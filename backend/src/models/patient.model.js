@@ -19,11 +19,26 @@ const patientSchema = new mongoose.Schema(
       type: String,
       required: [true, "Email is required"],
       unique: true,
+      lowercase: true,
+      trim: true,
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    emailVerificationToken: {
+      type: String,
+      select: false,
+    },
+    emailVerificationExpires: {
+      type: Date,
+      select: false,
     },
     password: {
       type: String,
       required: [true, "Password is required"],
-      minlength: 6,
+      minlength: [8, "Password must be at least 8 characters"],
+      maxlength: [32, "Password must be at most 32 characters"],
       select: false,
     },
     age: {

@@ -16,6 +16,7 @@ import Feedback from './pages/Feedback';
 import Notifications from './pages/Notifications';
 import Profile from './pages/Profile';
 import Home from './pages/Home';
+import VerifyEmail from './pages/VerifyEmail';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
@@ -109,6 +110,10 @@ function AppRoutes() {
             <Register />
           </PublicRoute>
         }
+      />
+      <Route
+        path="/verify-email"
+        element={<VerifyEmail />}
       />
 
       {/* Patient Routes */}

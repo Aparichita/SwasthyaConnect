@@ -9,8 +9,22 @@ const doctorSchema = new mongoose.Schema(
     },
     email: {
       type: String,
+      required: [true, "Email is required"],
       trim: true,
       lowercase: true,
+      unique: true,
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    emailVerificationToken: {
+      type: String,
+      select: false,
+    },
+    emailVerificationExpires: {
+      type: Date,
+      select: false,
     },
     phone: {
       type: String,
@@ -19,7 +33,8 @@ const doctorSchema = new mongoose.Schema(
     password: {
       type: String,
       required: [true, "Password is required"],
-      minlength: [6, "Password must be at least 6 characters"],
+      minlength: [8, "Password must be at least 8 characters"],
+      maxlength: [32, "Password must be at most 32 characters"],
       select: false,
     },
     specialization: {
@@ -30,12 +45,42 @@ const doctorSchema = new mongoose.Schema(
       type: String,
       required: [true, "Qualification is required"],
     },
+    medical_registration_number: {
+      type: String,
+      required: [true, "Medical registration number is required"],
+      trim: true,
+      match: [/^[A-Z0-9]{6,20}$/i, "Registration number must be 6-20 alphanumeric characters"],
+    },
+    state_medical_council: {
+      type: String,
+      required: [true, "State medical council is required"],
+    },
     hospital_name: {
       type: String,
     },
+    clinic_name: {
+      type: String,
+    },
+    consultation_type: {
+      type: String,
+      enum: ["Online", "Offline", "Both"],
+      default: "Both",
+    },
     experience: {
       type: Number,
+      required: [true, "Years of experience is required"],
       default: 0,
+    },
+    verification_status: {
+      type: String,
+      enum: ["unverified", "partially_verified", "fully_verified"],
+      default: "partially_verified",
+    },
+    medical_certificate: {
+      type: String, // URL or file path
+    },
+    degree_certificate: {
+      type: String, // URL or file path
     },
     consultation_fee: {
       type: Number,

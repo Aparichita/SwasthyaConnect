@@ -158,12 +158,21 @@ export const gamificationAPI = {
   getRewards: () => api.get('/gamification/rewards'),
 };
 
-// ABHA
-export const abhaAPI = {
-  generate: (data) => api.post('/abha/generate', data),
-  verifyOTP: (data) => api.post('/abha/verify-otp', data),
-  shareRecords: (data) => api.post('/abha/share-records', data),
-  fetchRecords: (consentId) => api.get(`/abha/fetch-records/${consentId}`),
+// Verification
+export const verificationAPI = {
+  sendVerificationEmail: (data) => api.post('/verification/send', data),
+  verifyEmail: (token, email, role) => api.get(`/verification/verify?token=${token}&email=${encodeURIComponent(email)}&role=${role}`),
+};
+
+// Messages
+export const messageAPI = {
+  getConversation: (appointmentId) => api.get(`/messages/conversation/${appointmentId}`),
+  getMyConversations: () => api.get('/messages/conversations'),
+  getMessages: (conversationId) => api.get(`/messages/${conversationId}`),
+  sendMessage: (data) => api.post('/messages/send', data),
+  uploadAttachment: (formData) => api.post('/messages/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
 };
 
 export default api;

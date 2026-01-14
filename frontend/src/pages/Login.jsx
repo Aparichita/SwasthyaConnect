@@ -56,10 +56,10 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-white">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-primary-50/30 to-white">
       <Navbar />
       <div className="flex items-center justify-center min-h-[calc(100vh-64px)] px-4">
-        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+        <div className="max-w-md w-full bg-white rounded-squircle shadow-soft-lg p-8 border-0">
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-primary-600 rounded-full flex items-center justify-center mx-auto mb-4">
               <LogIn className="w-8 h-8 text-white" />
@@ -118,7 +118,7 @@ const Login = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-primary-600 text-white py-3 rounded-lg font-semibold hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-primary-600 text-white py-3 rounded-xl font-semibold hover:bg-primary-700 transition-all shadow-soft hover:shadow-soft-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Logging in...' : 'Login'}
             </button>

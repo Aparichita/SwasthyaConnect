@@ -14,11 +14,8 @@ export const addFeedback = asyncHandler(async (req, res) => {
   const patientId = req.user.id;
   const { doctorId, rating, comment, message } = req.body;
 
-  // Determine comment content
-  const feedbackComment = message || comment;
-  if (!feedbackComment) {
-    throw new ApiError(400, "Feedback message/comment is required");
-  }
+  // Determine comment content (optional)
+  const feedbackComment = message || comment || "";
 
   // Default rating if not provided
   const feedbackRating = rating ? Number(rating) : 5;

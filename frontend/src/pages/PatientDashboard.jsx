@@ -86,70 +86,74 @@ const PatientDashboard = () => {
           <p className="text-gray-600 mt-2">Welcome back! Here's your health overview</p>
         </div>
 
-        {/* Stats Grid */}
+        {/* Stats Grid - Bento Box Layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-white rounded-squircle shadow-soft p-6 border-0 hover:shadow-soft-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">Appointments</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{stats.appointments}</p>
+                <p className="text-gray-500 text-sm font-medium">Appointments</p>
+                <p className="text-4xl font-bold text-gray-900 mt-2">{stats.appointments}</p>
               </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-blue-600" />
+              <div className="w-14 h-14 bg-primary-50 rounded-2xl flex items-center justify-center">
+                <Calendar className="w-7 h-7 text-primary-600" />
               </div>
             </div>
             <Link
               to="/patient/appointments"
-              className="text-blue-600 text-sm mt-4 inline-block hover:underline"
+              className="text-primary-600 text-sm mt-4 inline-block hover:underline font-medium"
             >
               View all →
             </Link>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-white rounded-squircle shadow-soft p-6 border-0 hover:shadow-soft-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">Reports</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{stats.reports}</p>
+                <p className="text-gray-500 text-sm font-medium">Reports</p>
+                <p className="text-4xl font-bold text-gray-900 mt-2">{stats.reports}</p>
               </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <FileText className="w-6 h-6 text-green-600" />
+              <div className="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center">
+                <FileText className="w-7 h-7 text-green-600" />
               </div>
             </div>
             <Link
               to="/patient/reports"
-              className="text-green-600 text-sm mt-4 inline-block hover:underline"
+              className="text-green-600 text-sm mt-4 inline-block hover:underline font-medium"
             >
               View all →
             </Link>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-white rounded-squircle shadow-soft p-6 border-0 hover:shadow-soft-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">Notifications</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{stats.notifications}</p>
+                <p className="text-gray-500 text-sm font-medium">Notifications</p>
+                <p className="text-4xl font-bold text-gray-900 mt-2">{stats.notifications}</p>
               </div>
-              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <Bell className="w-6 h-6 text-yellow-600" />
+              <div className="w-14 h-14 bg-yellow-50 rounded-2xl flex items-center justify-center">
+                <Bell className="w-7 h-7 text-yellow-600" />
               </div>
             </div>
             <Link
               to="/patient/notifications"
-              className="text-yellow-600 text-sm mt-4 inline-block hover:underline"
+              className="text-yellow-600 text-sm mt-4 inline-block hover:underline font-medium"
             >
               View all →
             </Link>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-squircle shadow-soft p-6 border-0 hover:shadow-soft-lg transition-shadow lg:col-span-2 lg:row-span-1">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">Health Points</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{stats.points}</p>
+                <p className="text-gray-600 text-sm font-medium">Health Points</p>
+                <p className="text-5xl font-bold text-gray-900 mt-2">{stats.points}</p>
+                <div className="mt-4 flex items-center space-x-2">
+                  <TrendingUp className="w-4 h-4 text-primary-600" />
+                  <span className="text-sm text-gray-600">Keep earning points!</span>
+                </div>
               </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <Award className="w-6 h-6 text-purple-600" />
+              <div className="w-20 h-20 bg-primary-200 rounded-3xl flex items-center justify-center">
+                <Award className="w-10 h-10 text-primary-700" />
               </div>
             </div>
             <p className="text-purple-600 text-sm mt-4">Keep earning! 🎉</p>
@@ -236,11 +240,14 @@ const PatientDashboard = () => {
             <p className="text-gray-600 text-sm">Share your experience</p>
           </Link>
 
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <Shield className="w-8 h-8 text-primary-600 mb-4" />
-            <h3 className="font-semibold text-gray-900 mb-2">Generate ABHA</h3>
-            <p className="text-gray-600 text-sm">Link your ABHA Health ID</p>
-          </div>
+          <Link
+            to="/patient/messages"
+            className="bg-white rounded-squircle shadow-soft p-6 border-0 hover:shadow-soft-lg transition-all"
+          >
+            <MessageSquare className="w-8 h-8 text-primary-600 mb-4" />
+            <h3 className="font-semibold text-gray-900 mb-2 text-lg">Messages</h3>
+            <p className="text-gray-600 text-sm">Chat with your doctors</p>
+          </Link>
         </div>
 
         {/* Profile Info */}

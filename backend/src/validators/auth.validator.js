@@ -25,9 +25,7 @@ export const loginValidator = [
     .withMessage("Invalid email format"),
   body("password")
     .notEmpty()
-    .withMessage("Password is required")
-    .isLength({ min: 6 })
-    .withMessage("Password must be at least 6 characters"),
+    .withMessage("Password is required"),
   body("role")
     .notEmpty()
     .withMessage("Role is required")
@@ -53,8 +51,10 @@ export const registerPatientValidator = [
   body("password")
     .notEmpty()
     .withMessage("Password is required")
-    .isLength({ min: 6 })
-    .withMessage("Password must be at least 6 characters"),
+    .isLength({ min: 8, max: 32 })
+    .withMessage("Password must be between 8 and 32 characters")
+    .matches(/^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,32}$/)
+    .withMessage("Password must contain at least one letter, one number, and one special character"),
   body("city")
     .notEmpty()
     .withMessage("City is required")
@@ -85,8 +85,10 @@ export const registerDoctorValidator = [
   body("password")
     .notEmpty()
     .withMessage("Password is required")
-    .isLength({ min: 6 })
-    .withMessage("Password must be at least 6 characters"),
+    .isLength({ min: 8, max: 32 })
+    .withMessage("Password must be between 8 and 32 characters")
+    .matches(/^(?=.*[a-zA-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,32}$/)
+    .withMessage("Password must contain at least one letter, one number, and one special character"),
   body("specialization")
     .notEmpty()
     .withMessage("Specialization is required")

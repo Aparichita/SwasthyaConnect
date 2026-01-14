@@ -17,6 +17,25 @@ export const bookAppointment = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Doctor, date, and time are required." });
   }
 
+  // Validate time slot format (HH:MM) - must be in 30-minute intervals starting from 10:00
+  const timeRegex = /^([1-2][0-9]|0[1-9]):([03]0)$/;
+  if (!timeRegex.test(time)) {
+    return res.status(400).json({ message: "Time must be in 30-minute intervals (e.g., 10:00, 10:30, 11:00)." });
+  }
+
+  // Extract hour and minute
+  const [hour, minute] = time.split(':').map(Number);
+  
+  // Check if time is before 10:00 AM (early mornings not allowed)
+  if (hour < 10 || (hour === 10 && minute < 0)) {
+    return res.status(400).json({ message: "Appointments cannot be booked before 10:00 AM." });
+  }
+
+  // Validate that minute is either 00 or 30
+  if (minute !== 0 && minute !== 30) {
+    return res.status(400).json({ message: "Time must be in 30-minute intervals (e.g., 10:00, 10:30, 11:00)." });
+  }
+
   // Fetch patient and doctor
   const patient = await Patient.findById(patientId);
   if (!patient) return res.status(404).json({ message: "Patient not found." });

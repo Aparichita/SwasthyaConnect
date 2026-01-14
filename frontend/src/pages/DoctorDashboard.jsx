@@ -76,70 +76,70 @@ const DoctorDashboard = () => {
           <p className="text-gray-600 mt-2">Manage your practice efficiently</p>
         </div>
 
-        {/* Stats Grid */}
+        {/* Stats Grid - Modern Bento Box Layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-white rounded-squircle shadow-soft p-6 border-0 hover:shadow-soft-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">Total Appointments</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{stats.appointments}</p>
+                <p className="text-gray-500 text-sm font-medium">Total Appointments</p>
+                <p className="text-4xl font-bold text-gray-900 mt-2">{stats.appointments}</p>
               </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-blue-600" />
+              <div className="w-14 h-14 bg-primary-50 rounded-2xl flex items-center justify-center">
+                <Calendar className="w-7 h-7 text-primary-600" />
               </div>
             </div>
             <Link
               to="/doctor/appointments"
-              className="text-blue-600 text-sm mt-4 inline-block hover:underline"
+              className="text-primary-600 text-sm mt-4 inline-block hover:underline font-medium"
             >
               View all →
             </Link>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-white rounded-squircle shadow-soft p-6 border-0 hover:shadow-soft-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">Total Patients</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{stats.patients}</p>
+                <p className="text-gray-500 text-sm font-medium">Total Patients</p>
+                <p className="text-4xl font-bold text-gray-900 mt-2">{stats.patients}</p>
               </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <Users className="w-6 h-6 text-green-600" />
+              <div className="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center">
+                <Users className="w-7 h-7 text-green-600" />
               </div>
             </div>
-            <p className="text-green-600 text-sm mt-4">All patients</p>
+            <p className="text-green-600 text-sm mt-4 font-medium">All patients</p>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-white rounded-squircle shadow-soft p-6 border-0 hover:shadow-soft-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">Pending Appointments</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{stats.pendingAppointments}</p>
+                <p className="text-gray-500 text-sm font-medium">Pending Appointments</p>
+                <p className="text-4xl font-bold text-gray-900 mt-2">{stats.pendingAppointments}</p>
               </div>
-              <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
-                <Clock className="w-6 h-6 text-yellow-600" />
+              <div className="w-14 h-14 bg-yellow-50 rounded-2xl flex items-center justify-center">
+                <Clock className="w-7 h-7 text-yellow-600" />
               </div>
             </div>
             <Link
               to="/doctor/appointments"
-              className="text-yellow-600 text-sm mt-4 inline-block hover:underline"
+              className="text-yellow-600 text-sm mt-4 inline-block hover:underline font-medium"
             >
               Review now →
             </Link>
           </div>
 
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-white rounded-squircle shadow-soft p-6 border-0 hover:shadow-soft-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-gray-600 text-sm">Feedback</p>
-                <p className="text-3xl font-bold text-gray-900 mt-2">{stats.feedback}</p>
+                <p className="text-gray-500 text-sm font-medium">Feedback</p>
+                <p className="text-4xl font-bold text-gray-900 mt-2">{stats.feedback}</p>
               </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <MessageSquare className="w-6 h-6 text-purple-600" />
+              <div className="w-14 h-14 bg-purple-50 rounded-2xl flex items-center justify-center">
+                <MessageSquare className="w-7 h-7 text-purple-600" />
               </div>
             </div>
             <Link
               to="/doctor/feedback"
-              className="text-purple-600 text-sm mt-4 inline-block hover:underline"
+              className="text-purple-600 text-sm mt-4 inline-block hover:underline font-medium"
             >
               View all →
             </Link>
@@ -147,7 +147,7 @@ const DoctorDashboard = () => {
         </div>
 
         {/* Recent Appointments */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-white rounded-squircle shadow-soft p-6 border-0">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold text-gray-900">Recent Appointments</h2>
             <Link
@@ -198,35 +198,35 @@ const DoctorDashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Link
             to="/doctor/appointments"
-            className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
+            className="bg-white rounded-squircle shadow-soft p-6 border-0 hover:shadow-soft-lg transition-all"
           >
             <Calendar className="w-8 h-8 text-primary-600 mb-4" />
-            <h3 className="font-semibold text-gray-900 mb-2">Manage Appointments</h3>
+            <h3 className="font-semibold text-gray-900 mb-2 text-lg">Manage Appointments</h3>
             <p className="text-gray-600 text-sm">View and update appointment status</p>
           </Link>
 
           <Link
             to="/doctor/reports"
-            className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
+            className="bg-white rounded-squircle shadow-soft p-6 border-0 hover:shadow-soft-lg transition-all"
           >
             <FileText className="w-8 h-8 text-primary-600 mb-4" />
-            <h3 className="font-semibold text-gray-900 mb-2">View Reports</h3>
-            <p className="text-gray-600 text-sm">Access patient medical reports</p>
+            <h3 className="font-semibold text-gray-900 mb-2 text-lg">Upload Prescription</h3>
+            <p className="text-gray-600 text-sm">Add consultation notes and prescriptions</p>
           </Link>
 
           <Link
             to="/doctor/feedback"
-            className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
+            className="bg-white rounded-squircle shadow-soft p-6 border-0 hover:shadow-soft-lg transition-all"
           >
             <MessageSquare className="w-8 h-8 text-primary-600 mb-4" />
-            <h3 className="font-semibold text-gray-900 mb-2">View Feedback</h3>
+            <h3 className="font-semibold text-gray-900 mb-2 text-lg">View Feedback</h3>
             <p className="text-gray-600 text-sm">See patient feedback and reviews</p>
           </Link>
         </div>
 
         {/* Profile Info */}
         {profile && (
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-white rounded-squircle shadow-soft p-6 border-0">
             <div className="flex items-center space-x-4">
               <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center">
                 <User className="w-8 h-8 text-primary-600" />

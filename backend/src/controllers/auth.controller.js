@@ -7,6 +7,7 @@ import { ApiResponse } from "../utils/api-response.js";
 import { ApiError } from "../utils/api-error.js";
 import { generateToken } from "../utils/token.js";
 import bcrypt from "bcryptjs";
+import { sendMail } from "../utils/mail.js";
 
 /**
  * @desc Register a new user (patient or doctor)
@@ -22,7 +23,13 @@ export const registerUser = asyncHandler(async (req, res) => {
     qualification,
     specialization,
     phone,
-    city
+    city,
+    medical_registration_number,
+    state_medical_council,
+    experience,
+    clinic_name,
+    consultation_type,
+    consultation_fee
   } = req.body;
 
   if (!name || !email || !password || !role) {
@@ -34,19 +41,20 @@ export const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(503, "Database not available. Please try again later.");
   }
 
-  // Fast email check with timeout
+  // Fast email check with timeout - check BOTH Patient and Doctor collections
   let existingUser;
   try {
-    const emailCheck = role === "patient" 
-      ? Patient.findOne({ email }).lean()
-      : Doctor.findOne({ email }).lean();
-    
-    existingUser = await Promise.race([
-      emailCheck,
+    const [existingPatient, existingDoctor] = await Promise.race([
+      Promise.all([
+        Patient.findOne({ email }).lean(),
+        Doctor.findOne({ email }).lean()
+      ]),
       new Promise((_, reject) => 
         setTimeout(() => reject(new Error("Database query timeout")), 3000)
       )
     ]);
+    
+    existingUser = existingPatient || existingDoctor;
   } catch (error) {
     if (error.message === "Database query timeout") {
       throw new ApiError(503, "Database connection timeout. Please try again.");
@@ -54,21 +62,37 @@ export const registerUser = asyncHandler(async (req, res) => {
     throw error;
   }
 
-  if (existingUser) throw new ApiError(400, "User with this email already exists");
+  if (existingUser && existingUser.isEmailVerified) {
+    throw new ApiError(400, "User with this email already exists");
+  }
 
-  // Create user with timeout
+  // Generate verification token
+  const crypto = await import("crypto");
+  const verificationToken = crypto.default.randomBytes(32).toString("hex");
+  const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+  // Create user with timeout (unverified initially)
   let newUser;
   try {
     if (role === "patient") {
       newUser = await Promise.race([
-        Patient.create({ name, email, password, role, city }),
+        Patient.create({ 
+          name, 
+          email, 
+          password, 
+          role, 
+          city,
+          isEmailVerified: false,
+          emailVerificationToken: verificationToken,
+          emailVerificationExpires: verificationExpires
+        }),
         new Promise((_, reject) => 
           setTimeout(() => reject(new Error("Database operation timeout")), 5000)
         )
       ]);
     } else {
-      if (!qualification || !specialization || !phone) {
-        throw new ApiError(400, "Qualification, specialization, and phone are required for doctor");
+      if (!qualification || !specialization || !phone || !medical_registration_number || !state_medical_council || !experience || !consultation_fee) {
+        throw new ApiError(400, "Qualification, specialization, phone, medical registration number, state medical council, experience, and consultation fee are required for doctor");
       }
       newUser = await Promise.race([
         Doctor.create({
@@ -79,7 +103,17 @@ export const registerUser = asyncHandler(async (req, res) => {
           qualification,
           specialization,
           phone,
-          city
+          city,
+          medical_registration_number,
+          state_medical_council,
+          experience: parseInt(experience) || 0,
+          clinic_name,
+          consultation_type: consultation_type || "Both",
+          consultation_fee: parseFloat(consultation_fee) || 0,
+          verification_status: "partially_verified",
+          isEmailVerified: false,
+          emailVerificationToken: verificationToken,
+          emailVerificationExpires: verificationExpires
         }),
         new Promise((_, reject) => 
           setTimeout(() => reject(new Error("Database operation timeout")), 5000)
@@ -96,12 +130,61 @@ export const registerUser = asyncHandler(async (req, res) => {
   const userResponse = { ...newUser._doc };
   delete userResponse.password;
 
-  const token = generateToken({ id: newUser._id, role: newUser.role });
+  // Send verification email
+  const verificationUrl = `${process.env.FRONTEND_URL || "http://localhost:5173"}/verify-email?token=${verificationToken}&email=${encodeURIComponent(email)}&role=${role}`;
+  
+  const emailHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+        .button { display: inline-block; padding: 12px 30px; background: #14b8a6; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>Welcome to SwasthyaConnect</h1>
+        </div>
+        <div class="content">
+          <h2>Verify Your Email Address</h2>
+          <p>Thank you for registering with SwasthyaConnect! Please verify your email address to activate your account.</p>
+          <p>Click the button below to verify your email:</p>
+          <a href="${verificationUrl}" class="button">Verify Email</a>
+          <p>Or copy and paste this link into your browser:</p>
+          <p style="word-break: break-all; color: #14b8a6;">${verificationUrl}</p>
+          <p><strong>This link will expire in 24 hours.</strong></p>
+          <p>If you didn't create an account with SwasthyaConnect, please ignore this email.</p>
+        </div>
+        <div class="footer">
+          <p>&copy; 2024 SwasthyaConnect. All rights reserved.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  try {
+    await sendMail({
+      to: email,
+      subject: "Verify Your Email - SwasthyaConnect",
+      html: emailHtml,
+      text: `Please verify your email by clicking this link: ${verificationUrl}`,
+    });
+  } catch (emailError) {
+    console.error("Failed to send verification email:", emailError);
+    // Don't fail registration if email fails
+  }
 
   // Send response immediately
   res
     .status(201)
-    .json(new ApiResponse(201, { user: userResponse, token }, "User registered successfully"));
+    .json(new ApiResponse(201, { user: userResponse, token }, "User registered successfully. Please check your email to verify your account."));
 });
 
 /**
@@ -142,6 +225,11 @@ export const loginUser = asyncHandler(async (req, res) => {
   }
 
   if (!user) throw new ApiError(401, "Invalid credentials");
+
+  // Check if email is verified
+  if (!user.isEmailVerified) {
+    throw new ApiError(403, "Please verify your email before logging in. Check your inbox for the verification link.");
+  }
 
   // Fast password comparison
   const isMatch = await bcrypt.compare(password, user.password);

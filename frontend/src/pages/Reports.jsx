@@ -235,7 +235,7 @@ const Reports = () => {
               className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 flex items-center space-x-2"
             >
               <Plus className="w-5 h-5" />
-              <span>Upload Report</span>
+              <span>{isDoctor ? 'Upload Prescription' : 'Upload Report'}</span>
             </button>
           </div>
         </div>
@@ -330,7 +330,9 @@ const Reports = () => {
         {showModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Upload Report</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                {isDoctor ? 'Upload Prescription / Add Consultation Notes' : 'Upload Report'}
+              </h2>
               <form onSubmit={handleSubmit} className="space-y-4">
                 {isDoctor && (
                   <div>

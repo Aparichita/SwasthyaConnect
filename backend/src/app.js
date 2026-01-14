@@ -11,10 +11,11 @@ import appointmentRoutes from "./routes/appointment.routes.js";
 import reportRoutes from "./routes/report.routes.js";
 import feedbackRoutes from "./routes/feedback.routes.js";
 import notificationRoutes from "./routes/notification.routes.js";
-import abhaRoutes from "./routes/abha.routes.js";
 import gamificationRoutes from "./routes/gamification.routes.js";
 import mailRoutes from "./routes/mail.routes.js";
 import whatsappRoutes from "./routes/whatsapp.routes.js";
+import verificationRoutes from "./routes/verification.routes.js";
+import messageRoutes from "./routes/message.routes.js";
 
 // Middlewares
 import { errorHandler } from "./middlewares/error.middleware.js";
@@ -53,6 +54,7 @@ app.use(cors({
 
 app.use(express.json()); // Parse JSON body
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded body
+app.use("/uploads", express.static("uploads")); // Serve uploaded files
 
 // ✅ Routes
 app.use("/api/auth", authRoutes);
@@ -63,8 +65,9 @@ app.use("/api/appointments", appointmentRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/feedback", feedbackRoutes);
 app.use("/api/notifications", notificationRoutes);
-app.use("/api/abha", abhaRoutes);
 app.use("/api/gamification", gamificationRoutes);
+app.use("/api/verification", verificationRoutes);
+app.use("/api/messages", messageRoutes);
 app.use("/api/mail", mailRoutes);
 app.use("/api/whatsapp", whatsappRoutes);
 
