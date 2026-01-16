@@ -84,13 +84,8 @@ export const verifyEmail = asyncHandler(async (req, res) => {
     throw new ApiError(500, "Failed to verify account");
   }
 
-  // Return success response
-  res.status(200).json(
-    new ApiResponse(
-      200,
-      { verified: true, role: userRole },
-      "Your account has been verified!"
-    )
-  );
+  // Redirect to frontend success page
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+  return res.redirect(`${frontendUrl}/email-verified-success?verified=true`);
 });
 

@@ -106,7 +106,7 @@ connectDB()
   });
 
 // Start the server
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`\n🚀 Server running on port ${PORT}`);
   console.log(`📝 Environment: ${process.env.NODE_ENV || "development"}`);
   console.log(`\n✅ API endpoints are available at http://localhost:${PORT}/api`);
@@ -119,3 +119,13 @@ app.listen(PORT, () => {
   console.log("   - POST /api/auth/login");
   console.log("   - GET /api/health\n");
 });
+
+// Initialize Socket.io
+try {
+  const { initializeSocket } = await import("./socket/socket.js");
+  const io = initializeSocket(server);
+  console.log("✅ Socket.io initialized\n");
+} catch (error) {
+  console.error("❌ Failed to initialize Socket.io:", error.message);
+  console.warn("   Real-time chat features will not be available\n");
+}

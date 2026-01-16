@@ -3,8 +3,9 @@ import DashboardLayout from '../components/Layout/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
 import { useParams, useNavigate } from 'react-router-dom';
 import { messageAPI, appointmentAPI } from '../services/api';
-import { MessageSquare, Send, Paperclip, ArrowLeft, AlertTriangle } from 'lucide-react';
+import { MessageSquare, Send, Paperclip, ArrowLeft, AlertTriangle, FileText, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { initializeSocket, getSocket, disconnectSocket } from '../utils/socket';
 
 const DoctorMessages = () => {
   const { appointmentId } = useParams();
@@ -18,8 +19,12 @@ const DoctorMessages = () => {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [typing, setTyping] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef(null);
 
   const messagesEndRef = useRef(null);
+  const socketRef = useRef(null);
 
   // Auto-scroll to bottom
   const scrollToBottom = () => {
@@ -34,8 +39,36 @@ const DoctorMessages = () => {
   useEffect(() => {
     if (user && !user.isVerified) {
       toast.warning('Your account must be verified to access chat');
-      navigate('/doctor/verification');
+      navigate('/verify-pending');
     }
+  }, [user, navigate]);
+
+  /* ---------- SOCKET.IO SETUP ---------- */
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token || !user?.isVerified) return;
+
+    // Initialize socket
+    const socket = initializeSocket(token);
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      console.log('✅ Socket connected');
+    });
+
+    socket.on('error', (error) => {
+      console.error('Socket error:', error);
+      if (error.message?.includes('verification')) {
+        toast.error('Please verify your email to use chat');
+        navigate('/verify-pending');
+      }
+    });
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
   }, [user, navigate]);
 
   /* ---------- INITIAL LOAD ---------- */
@@ -95,9 +128,49 @@ const DoctorMessages = () => {
     try {
       const res = await messageAPI.getMessages(conversationId);
       setMessages(res.data?.data || []);
+      
+      // Join socket room after conversation is loaded
+      if (socketRef.current && conversationId) {
+        socketRef.current.emit('joinConversation', conversationId);
+        
+        // Listen for real-time messages
+        socketRef.current.on('receiveMessage', (messageData) => {
+          setMessages(prev => [...prev, messageData]);
+        });
+
+        // Listen for typing indicators
+        socketRef.current.on('userTyping', (data) => {
+          if (data.userRole === 'patient') {
+            setIsTyping(true);
+          }
+        });
+
+        socketRef.current.on('userStoppedTyping', (data) => {
+          setIsTyping(false);
+        });
+      }
     } catch (err) {
       console.error('Message fetch failed');
     }
+  };
+
+  /* ---------- TYPING INDICATOR ---------- */
+  const handleTyping = () => {
+    if (!typing && conversation?._id) {
+      setTyping(true);
+      socketRef.current?.emit('typing', { conversationId: conversation._id });
+    }
+
+    // Clear existing timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Set new timeout to stop typing
+    typingTimeoutRef.current = setTimeout(() => {
+      setTyping(false);
+      socketRef.current?.emit('stopTyping', { conversationId: conversation._id });
+    }, 1000);
   };
 
   /* ---------- SEND MESSAGE ---------- */
@@ -105,15 +178,35 @@ const DoctorMessages = () => {
     e.preventDefault();
     if (!newMessage.trim() || !conversation) return;
 
+    // Stop typing indicator
+    if (typing) {
+      setTyping(false);
+      socketRef.current?.emit('stopTyping', { conversationId: conversation._id });
+    }
+
     try {
       setSending(true);
+      const messageText = newMessage; // Save before clearing
       const response = await messageAPI.sendMessage({
         conversationId: conversation._id,
-        messageText: newMessage,
+        messageText: messageText,
       });
       if (response.data?.success || response.data?.statusCode === 201) {
+        const sentMessage = response.data.data;
         setNewMessage('');
-        await fetchMessages(conversation._id);
+        
+        // Emit via socket for real-time delivery
+        if (socketRef.current) {
+          socketRef.current.emit('sendMessage', {
+            conversationId: conversation._id,
+            messageText: messageText,
+            messageType: 'text',
+          });
+        }
+        
+        // Update messages immediately (optimistic update)
+        setMessages(prev => [...prev, sentMessage]);
+        
         // refresh conversation for lastMessage & unread count
         const convRes = await messageAPI.getConversation(appointmentId);
         if (convRes.data?.success) setConversation(convRes.data.data);
@@ -208,53 +301,123 @@ const DoctorMessages = () => {
         </div>
 
         {/* Messages */}
-        <div className="bg-white p-6 rounded-lg shadow h-[500px] overflow-y-auto">
+        <div className="bg-white p-6 rounded-lg shadow-soft h-[500px] overflow-y-auto">
           {messages.length === 0 ? (
             <div className="text-center text-gray-400 mt-20">
-              <MessageSquare className="mx-auto mb-2" />
-              No messages yet
+              <MessageSquare className="mx-auto mb-2 w-12 h-12" />
+              <p className="text-lg font-medium">No messages yet</p>
+              <p className="text-sm">Start the conversation with your patient</p>
             </div>
           ) : (
-            messages.map(msg => (
-              <div
-                key={msg._id}
-                className={`flex ${msg.senderRole === 'doctor' ? 'justify-end' : 'justify-start'} mb-3`}
-              >
-                <div className={`p-3 rounded-xl max-w-md ${msg.senderRole === 'doctor' ? 'bg-primary-600 text-white' : 'bg-gray-100'}`}>
-                  {msg.messageText}
-                  {msg.attachmentUrl && (
-                    msg.messageType === 'image' ? (
-                      <img src={msg.attachmentUrl} alt="attachment" className="max-w-xs mt-2 rounded" />
-                    ) : (
-                      <a href={msg.attachmentUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline block mt-2">
-                        View PDF
-                      </a>
-                    )
-                  )}
+            <div className="space-y-4">
+              {messages.map(msg => (
+                <div
+                  key={msg._id || msg.createdAt}
+                  className={`flex ${msg.senderRole === 'doctor' ? 'justify-end' : 'justify-start'} mb-4`}
+                >
+                  <div className={`flex items-start space-x-2 max-w-md ${msg.senderRole === 'doctor' ? 'flex-row-reverse space-x-reverse' : ''}`}>
+                    {/* Avatar */}
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${msg.senderRole === 'doctor' ? 'bg-primary-600' : 'bg-gray-300'}`}>
+                      <span className="text-white text-xs font-semibold">
+                        {msg.senderRole === 'doctor' ? 'Dr' : appointment?.patient?.name?.charAt(0)?.toUpperCase() || 'P'}
+                      </span>
+                    </div>
+                    
+                    {/* Message Bubble */}
+                    <div className={`flex flex-col ${msg.senderRole === 'doctor' ? 'items-end' : 'items-start'}`}>
+                      <div className={`px-4 py-2 rounded-2xl shadow-sm ${msg.senderRole === 'doctor' ? 'bg-primary-600 text-white rounded-br-sm' : 'bg-gray-100 text-gray-900 rounded-bl-sm'}`}>
+                        {msg.messageText && (
+                          <p className="text-sm whitespace-pre-wrap break-words">{msg.messageText}</p>
+                        )}
+                        {msg.attachmentUrl && (
+                          <div className="mt-2">
+                            {msg.messageType === 'image' ? (
+                              <div className="relative">
+                                <img 
+                                  src={msg.attachmentUrl} 
+                                  alt="attachment" 
+                                  className="max-w-xs rounded-lg shadow-sm"
+                                />
+                                <div className="absolute top-2 right-2 bg-black/50 rounded-full p-1">
+                                  <ImageIcon className="w-4 h-4 text-white" />
+                                </div>
+                              </div>
+                            ) : (
+                              <a 
+                                href={msg.attachmentUrl} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className={`flex items-center space-x-2 p-2 rounded-lg ${msg.senderRole === 'doctor' ? 'bg-primary-700 text-white' : 'bg-white text-gray-700'} hover:opacity-90 transition-opacity`}
+                              >
+                                <FileText className="w-4 h-4" />
+                                <span className="text-sm">View PDF</span>
+                              </a>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                      {/* Timestamp */}
+                      <span className="text-xs text-gray-500 mt-1 px-2">
+                        {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))
+              ))}
+              
+              {/* Typing Indicator */}
+              {isTyping && (
+                <div className="flex justify-start mb-4">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center">
+                      <span className="text-gray-600 text-xs font-semibold">{appointment?.patient?.name?.charAt(0)?.toUpperCase() || 'P'}</span>
+                    </div>
+                    <div className="bg-gray-100 px-4 py-2 rounded-2xl rounded-bl-sm">
+                      <div className="flex space-x-1">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
           <div ref={messagesEndRef}></div>
         </div>
 
         {/* Input */}
-        <form onSubmit={handleSendMessage} className="flex gap-3">
-          <textarea
-            value={newMessage}
-            onChange={e => setNewMessage(e.target.value)}
-            className="flex-1 border rounded p-3"
-            placeholder="Type message..."
-          />
-          <label>
-            <input type="file" hidden onChange={handleFileUpload} />
-            <Paperclip className="cursor-pointer mt-3" />
-          </label>
+        <form onSubmit={handleSendMessage} className="flex gap-3 items-end">
+          <div className="flex-1 relative">
+            <textarea
+              value={newMessage}
+              onChange={(e) => {
+                setNewMessage(e.target.value);
+                handleTyping();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage(e);
+                }
+              }}
+              className="w-full border border-gray-300 rounded-xl p-3 pr-12 focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+              placeholder="Type your message..."
+              rows={3}
+            />
+            <label className="absolute right-3 bottom-3 cursor-pointer">
+              <input type="file" hidden onChange={handleFileUpload} accept="image/*,application/pdf" />
+              <Paperclip className="w-5 h-5 text-gray-400 hover:text-primary-600 transition-colors" />
+            </label>
+          </div>
           <button
-            disabled={sending}
-            className="bg-primary-600 text-white px-4 rounded"
+            type="submit"
+            disabled={sending || !newMessage.trim()}
+            className="bg-primary-600 text-white px-6 py-3 rounded-xl hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-soft hover:shadow-soft-lg flex items-center space-x-2"
           >
-            <Send />
+            <Send className="w-5 h-5" />
+            <span>{sending ? 'Sending...' : 'Send'}</span>
           </button>
         </form>
 

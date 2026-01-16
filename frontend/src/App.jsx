@@ -24,6 +24,8 @@ import PatientMessagesList from './pages/PatientMessagesList';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import VerifyEmailRequired from './pages/VerifyEmailRequired';
+import VerifyPending from './pages/VerifyPending';
+import EmailVerifiedSuccess from './pages/EmailVerifiedSuccess';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
@@ -71,7 +73,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   // Check if user is verified (mandatory for protected routes)
   const isVerified = user?.isVerified === true || user?.isEmailVerified === true;
   if (!isVerified) {
-    return <Navigate to="/verify-email-required" replace />;
+    return <Navigate to="/verify-email-pending" replace />;
   }
 
   return children;
@@ -147,6 +149,18 @@ function AppRoutes() {
             <ResetPassword />
           </PublicRoute>
         }
+      />
+      <Route
+        path="/verify-email-pending"
+        element={<VerifyPending />}
+      />
+      <Route
+        path="/verify-pending"
+        element={<VerifyPending />}
+      />
+      <Route
+        path="/email-verified-success"
+        element={<EmailVerifiedSuccess />}
       />
       <Route
         path="/verify-email-required"

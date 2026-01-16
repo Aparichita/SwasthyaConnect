@@ -164,6 +164,7 @@ export const verificationAPI = {
   verifyEmail: (token, email, role) => api.get(`/verification/verify?token=${token}&email=${encodeURIComponent(email)}&role=${role}`),
   // New simplified verification endpoint (token only in URL)
   verifyEmailByToken: (token) => api.get(`/auth/verify-email/${token}`),
+  resendVerification: (data) => api.post('/auth/resend-verification', data),
 };
 
 // Password Reset

@@ -3,6 +3,7 @@ import { loginUser, getCurrentUser, registerUser } from "../controllers/auth.con
 import { verifyToken } from "../middlewares/auth.middleware.js";
 import { verifyEmail } from "../controllers/verification-simple.controller.js";
 import { forgotPassword, resetPassword } from "../controllers/password.controller.js";
+import { resendVerification } from "../controllers/resend-verification.controller.js";
 
 const router = express.Router();
 
@@ -61,5 +62,14 @@ router.post("/forgot-password", forgotPassword);
  * Body: { "password": "newPassword123!", "confirmPassword": "newPassword123!" }
  */
 router.post("/reset-password/:token", resetPassword);
+
+/**
+ * @route POST /api/auth/resend-verification
+ * @desc Resend verification email
+ * @access Public
+ * 
+ * Body: { "email": "user@example.com", "role": "patient" | "doctor" }
+ */
+router.post("/resend-verification", resendVerification);
 
 export default router;
