@@ -15,18 +15,18 @@ const Sidebar = ({ role }) => {
   const patientMenu = [
     { path: '/patient/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/patient/appointments', label: 'Appointments', icon: Calendar },
+    { path: '/patient/messages', label: 'Messages', icon: MessageSquare },
     { path: '/patient/reports', label: 'Reports', icon: FileText },
     { path: '/patient/feedback', label: 'Feedback', icon: MessageSquare },
-    { path: '/patient/notifications', label: 'Notifications', icon: Bell },
     { path: '/patient/profile', label: 'Profile', icon: User },
   ];
 
   const doctorMenu = [
     { path: '/doctor/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/doctor/appointments', label: 'Appointments', icon: Calendar },
+    { path: '/doctor/messages', label: 'Messages', icon: MessageSquare },
     { path: '/doctor/reports', label: 'Reports', icon: FileText },
     { path: '/doctor/feedback', label: 'Feedback', icon: MessageSquare },
-    { path: '/doctor/notifications', label: 'Notifications', icon: Bell },
     { path: '/doctor/profile', label: 'Profile', icon: User },
   ];
 

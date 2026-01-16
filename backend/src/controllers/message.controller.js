@@ -61,6 +61,11 @@ export const getConversation = asyncHandler(async (req, res) => {
     throw new ApiError(403, "Not authorized to access this conversation");
   }
 
+  // 🔒 CRITICAL: Chat only enabled for confirmed appointments
+  if (appointment.status !== "confirmed") {
+    throw new ApiError(403, `Chat is only available for confirmed appointments. Current status: ${appointment.status}. Please wait for doctor approval.`);
+  }
+
   // Find or create conversation
   let conversation = await Conversation.findOne({ appointment: appointmentId })
     .populate("doctor", "name email")
@@ -165,7 +170,8 @@ export const sendMessage = asyncHandler(async (req, res) => {
   }
 
   // Verify user is part of conversation
-  const conversation = await Conversation.findById(conversationId);
+  const conversation = await Conversation.findById(conversationId)
+    .populate("appointment");
   if (!conversation) {
     throw new ApiError(404, "Conversation not found");
   }
@@ -175,6 +181,11 @@ export const sendMessage = asyncHandler(async (req, res) => {
     (userRole === "doctor" && conversation.doctor.toString() !== userId)
   ) {
     throw new ApiError(403, "Not authorized to send messages in this conversation");
+  }
+
+  // 🔒 CRITICAL: Chat only enabled for confirmed appointments
+  if (!conversation.appointment || conversation.appointment.status !== "confirmed") {
+    throw new ApiError(403, `Chat is only available for confirmed appointments. Current status: ${conversation.appointment?.status || 'unknown'}.`);
   }
 
   const message = await Message.create({
@@ -218,7 +229,8 @@ export const uploadAttachment = asyncHandler(async (req, res) => {
     }
 
     // Verify user is part of conversation
-    const conversation = await Conversation.findById(conversationId);
+    const conversation = await Conversation.findById(conversationId)
+      .populate("appointment");
     if (!conversation) {
       return res.status(404).json({ success: false, message: "Conversation not found" });
     }
@@ -228,6 +240,14 @@ export const uploadAttachment = asyncHandler(async (req, res) => {
       (userRole === "doctor" && conversation.doctor.toString() !== userId)
     ) {
       return res.status(403).json({ success: false, message: "Not authorized" });
+    }
+
+    // 🔒 CRITICAL: Chat only enabled for confirmed appointments
+    if (!conversation.appointment || conversation.appointment.status !== "confirmed") {
+      return res.status(403).json({ 
+        success: false, 
+        message: `Chat is only available for confirmed appointments. Current status: ${conversation.appointment?.status || 'unknown'}.` 
+      });
     }
 
     const fileType = req.file.mimetype.startsWith("image/") ? "image" : "pdf";

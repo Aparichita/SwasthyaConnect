@@ -245,6 +245,9 @@ export const AuthProvider = ({ children }) => {
     toast.info('Logged out successfully');
   };
 
+  // Check if user is verified (check both isVerified and isEmailVerified for backward compatibility)
+  const isVerified = user?.isVerified === true || user?.isEmailVerified === true;
+
   const value = {
     user,
     token,
@@ -252,9 +255,10 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
-    isAuthenticated: !!token,
+    isAuthenticated: !!token && !!user,
     isPatient: user?.role === 'patient',
     isDoctor: user?.role === 'doctor',
+    isVerified: isVerified,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

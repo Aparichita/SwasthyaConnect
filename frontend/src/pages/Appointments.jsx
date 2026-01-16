@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import DashboardLayout from '../components/Layout/DashboardLayout';
 import { appointmentAPI, doctorAPI, patientAPI, gamificationAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { Calendar, Clock, User, Plus, Check, X, Search } from 'lucide-react';
+import { Calendar, Clock, User, Plus, Check, X, Search, MessageSquare } from 'lucide-react';
 import { toast } from 'react-toastify';
 import DoctorSuggestions from '../components/DoctorSuggestions';
 
@@ -389,24 +389,42 @@ const Appointments = () => {
                       <>
                         <button
                           onClick={() => handleStatusUpdate(appointment._id, 'confirmed')}
-                          className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center space-x-2"
+                          className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center space-x-2 transition-all shadow-soft hover:shadow-soft-lg"
                         >
                           <Check className="w-4 h-4" />
-                          <span>Confirm</span>
+                          <span>✅ Approve</span>
                         </button>
                         <button
-                          onClick={() => handleStatusUpdate(appointment._id, 'cancelled')}
-                          className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center space-x-2"
+                          onClick={() => handleStatusUpdate(appointment._id, 'rejected')}
+                          className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 flex items-center space-x-2 transition-all shadow-soft hover:shadow-soft-lg"
                         >
                           <X className="w-4 h-4" />
-                          <span>Cancel</span>
+                          <span>❌ Reject</span>
                         </button>
                       </>
                     )}
-                    {isPatient && (
+                    {isDoctor && appointment.status === 'confirmed' && (
+                      <Link
+                        to={`/doctor/messages/${appointment._id}`}
+                        className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 flex items-center space-x-2 transition-all shadow-soft hover:shadow-soft-lg text-center justify-center"
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                        <span>Open Chat</span>
+                      </Link>
+                    )}
+                    {isPatient && appointment.status === 'confirmed' && (
+                      <Link
+                        to={`/patient/messages/${appointment._id}`}
+                        className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 flex items-center space-x-2 transition-all shadow-soft hover:shadow-soft-lg text-center justify-center"
+                      >
+                        <MessageSquare className="w-4 h-4" />
+                        <span>Open Chat</span>
+                      </Link>
+                    )}
+                    {isPatient && appointment.status !== 'confirmed' && (
                       <button
                         onClick={() => handleDelete(appointment._id)}
-                        className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+                        className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-all shadow-soft hover:shadow-soft-lg"
                       >
                         Cancel
                       </button>

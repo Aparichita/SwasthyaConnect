@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Layout/Navbar';
 import { UserPlus } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -131,8 +132,8 @@ const Register = () => {
         setSuccess(true);
         setError('');
         setLoading(false);
+        toast.success('A verification email has been sent to your email address. Please check your inbox.');
         // Don't redirect - user needs to verify email first
-        // Show success message with email verification instructions
       } else {
         console.error('❌ Registration failed:', result);
         // Show network error with helpful message
@@ -480,13 +481,13 @@ const Register = () => {
             )}
 
             {success && (
-              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-                <p className="font-semibold">✅ Registration Successful!</p>
-                <p className="text-sm mt-2">
-                  Please check your email (<strong>{formData.email}</strong>) to verify your account.
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                <p className="font-semibold text-green-800">✅ Registration Successful!</p>
+                <p className="text-sm text-green-700 mt-2">
+                  A verification email has been sent to your email address. Please check your inbox.
                 </p>
-                <p className="text-xs mt-2 text-green-600">
-                  Click the verification link in the email to activate your account. You can then log in.
+                <p className="text-xs text-green-600 mt-2">
+                  You must verify your email before you can access protected routes like Dashboard, Messages, and Profile.
                 </p>
               </div>
             )}

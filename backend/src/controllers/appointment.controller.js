@@ -43,14 +43,14 @@ export const bookAppointment = asyncHandler(async (req, res) => {
   const doctor = await Doctor.findById(doctorId);
   if (!doctor) return res.status(404).json({ message: "Doctor not found." });
 
-  // Create appointment
+  // Create appointment with pending status (doctor must approve)
   const appointment = await Appointment.create({
     patient: patientId,
     doctor: doctorId,
     date,
     time,
     symptoms,
-    status: "confirmed"
+    status: "pending" // Doctor must approve before confirmation
   });
 
   // Send email to patient
@@ -58,8 +58,8 @@ export const bookAppointment = asyncHandler(async (req, res) => {
     try {
       await sendMail({
         to: patient.email,
-        subject: "Appointment Confirmation - SwasthyaConnect",
-        text: `Hi ${patient.name || "Patient"},\n\nYour appointment with Dr. ${doctor.name || "Doctor"} is confirmed for ${date} at ${time}.\n\nThank you for using SwasthyaConnect.`
+        subject: "Appointment Request Submitted - SwasthyaConnect",
+        text: `Hi ${patient.name || "Patient"},\n\nYour appointment request with Dr. ${doctor.name || "Doctor"} for ${date} at ${time} has been submitted and is pending doctor approval.\n\nYou will be notified once the doctor reviews your request.\n\nThank you for using SwasthyaConnect.`
       });
     } catch (err) {
       console.warn("Failed to send patient email:", err.message);
@@ -71,8 +71,8 @@ export const bookAppointment = asyncHandler(async (req, res) => {
     try {
       await sendMail({
         to: doctor.email,
-        subject: "New Appointment Booked",
-        text: `Hi Dr. ${doctor.name || "Doctor"},\n\nA new appointment has been booked by ${patient.name || "a patient"} on ${date} at ${time}.\n\nPlease check your dashboard for details.`
+        subject: "New Appointment Request - SwasthyaConnect",
+        text: `Hi Dr. ${doctor.name || "Doctor"},\n\nA new appointment request has been submitted by ${patient.name || "a patient"} on ${date} at ${time}.\n\nPlease review and approve/reject the appointment in your dashboard.`
       });
     } catch (err) {
       console.warn("Failed to send doctor email:", err.message);
@@ -120,8 +120,8 @@ export const updateAppointmentStatus = asyncHandler(async (req, res) => {
   const { status } = req.body;
   const appointmentId = req.params.id;
 
-  if (!["pending", "confirmed", "completed", "cancelled"].includes(status)) {
-    return res.status(400).json({ message: "Invalid status." });
+  if (!["pending", "confirmed", "rejected", "completed", "cancelled"].includes(status)) {
+    return res.status(400).json({ message: "Invalid status. Must be: pending, confirmed, rejected, completed, or cancelled." });
   }
 
   const appointment = await Appointment.findById(appointmentId);

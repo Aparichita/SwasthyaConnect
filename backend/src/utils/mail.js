@@ -36,6 +36,19 @@ export const sendMail = async ({ to, subject, text, html }) => {
     return info;
   } catch (error) {
     console.error("Error sending email:", error.message);
-    throw new Error("Email sending failed");
+    console.error("Email error details:", {
+      code: error.code,
+      command: error.command,
+      response: error.response,
+      responseCode: error.responseCode,
+    });
+    
+    // Check if email credentials are missing
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      console.error("⚠️ EMAIL_USER or EMAIL_PASS not set in .env file");
+      throw new Error("Email configuration missing. Please set EMAIL_USER and EMAIL_PASS in .env");
+    }
+    
+    throw new Error(`Email sending failed: ${error.message}`);
   }
 };

@@ -1,11 +1,14 @@
 // frontend/src/pages/VerifyEmail.jsx
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { verificationAPI } from '../services/api';
 import { CheckCircle, XCircle, Loader } from 'lucide-react';
 import Navbar from '../components/Layout/Navbar';
+import { toast } from 'react-toastify';
 
 const VerifyEmail = () => {
+  // Support both URL param (/:token) and query param (?token=...) for backward compatibility
+  const { token: tokenFromUrl } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [status, setStatus] = useState('verifying'); // verifying, success, error
@@ -13,21 +16,54 @@ const VerifyEmail = () => {
 
   useEffect(() => {
     const verify = async () => {
-      const token = searchParams.get('token');
-      const email = searchParams.get('email');
-      const role = searchParams.get('role');
+      // Try URL param first (new format: /verify-email/:token)
+      let token = tokenFromUrl;
+      
+      // Fallback to query param (old format: /verify-email?token=...&email=...&role=...)
+      if (!token) {
+        token = searchParams.get('token');
+        const email = searchParams.get('email');
+        const role = searchParams.get('role');
+        
+        // If using old format, use old API
+        if (token && email && role) {
+          try {
+            const response = await verificationAPI.verifyEmail(token, email, role);
+            if (response.data?.statusCode === 200 || response.data?.data?.verified) {
+              setStatus('success');
+              setMessage('Email verified successfully! You can now log in.');
+              toast.success('Email verified successfully! You can now log in.');
+              setTimeout(() => {
+                navigate('/login');
+              }, 3000);
+            } else {
+              throw new Error('Verification failed');
+            }
+          } catch (error) {
+            setStatus('error');
+            const errorMsg = error.response?.data?.message || 'Verification failed. The link may have expired.';
+            setMessage(errorMsg);
+            toast.error(errorMsg);
+          }
+          return;
+        }
+      }
 
-      if (!token || !email || !role) {
+      // New simplified format - token only
+      if (!token) {
         setStatus('error');
         setMessage('Invalid verification link. Please check your email.');
+        toast.error('Invalid verification link');
         return;
       }
 
       try {
-        const response = await verificationAPI.verifyEmail(token, email, role);
+        // Use new simplified API endpoint
+        const response = await verificationAPI.verifyEmailByToken(token);
         if (response.data?.statusCode === 200 || response.data?.data?.verified) {
           setStatus('success');
-          setMessage('Email verified successfully! You can now log in.');
+          setMessage('Your account has been verified!');
+          toast.success('Your account has been verified!');
           setTimeout(() => {
             navigate('/login');
           }, 3000);
@@ -36,12 +72,14 @@ const VerifyEmail = () => {
         }
       } catch (error) {
         setStatus('error');
-        setMessage(error.response?.data?.message || 'Verification failed. The link may have expired.');
+        const errorMsg = error.response?.data?.message || 'Invalid or expired token';
+        setMessage(errorMsg);
+        toast.error(errorMsg);
       }
     };
 
     verify();
-  }, [searchParams, navigate]);
+  }, [tokenFromUrl, searchParams, navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-primary-50/30 to-white">
@@ -60,7 +98,7 @@ const VerifyEmail = () => {
             <>
               <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-gray-900 mb-2">Email Verified!</h2>
-              <p className="text-gray-600 mb-4">{message}</p>
+              <p className="text-gray-600 mb-4">Your email has been verified. You can now login.</p>
               <p className="text-sm text-gray-500">Redirecting to login page...</p>
             </>
           )}

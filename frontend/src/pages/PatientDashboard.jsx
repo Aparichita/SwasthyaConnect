@@ -2,7 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../components/Layout/DashboardLayout';
 import { patientAPI, appointmentAPI, reportAPI, notificationAPI, gamificationAPI } from '../services/api';
-import { Calendar, FileText, Bell, Award, TrendingUp, User, Shield, Brain, Search } from 'lucide-react';
+import {
+  Calendar,
+  FileText,
+  Bell,
+  Award,
+  TrendingUp,
+  User,
+  Shield,
+  Brain,
+  Search,
+  MessageSquare
+} from 'lucide-react';
+
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import DoctorSuggestions from '../components/DoctorSuggestions';
@@ -241,7 +253,7 @@ const PatientDashboard = () => {
           </Link>
 
           <Link
-            to="/patient/messages"
+            to="/patient/appointments"
             className="bg-white rounded-squircle shadow-soft p-6 border-0 hover:shadow-soft-lg transition-all"
           >
             <MessageSquare className="w-8 h-8 text-primary-600 mb-4" />

@@ -14,6 +14,7 @@ import { sendMail } from "../utils/mail.js";
  * @route POST /api/auth/register
  * @access Public
  */
+
 export const registerUser = asyncHandler(async (req, res) => {
   const {
     name,
@@ -66,10 +67,10 @@ export const registerUser = asyncHandler(async (req, res) => {
     throw new ApiError(400, "User with this email already exists");
   }
 
-  // Generate verification token
+  // Generate verification token using crypto
   const crypto = await import("crypto");
   const verificationToken = crypto.default.randomBytes(32).toString("hex");
-  const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+  const verificationExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour expiry
 
   // Create user with timeout (unverified initially)
   let newUser;
@@ -82,9 +83,13 @@ export const registerUser = asyncHandler(async (req, res) => {
           password, 
           role, 
           city,
+          // Legacy fields (keep for backward compatibility)
           isEmailVerified: false,
           emailVerificationToken: verificationToken,
-          emailVerificationExpires: verificationExpires
+          emailVerificationExpires: verificationExpires,
+          // New simplified verification fields
+          isVerified: false,
+          verificationToken: verificationToken // Token expires in 1 hour
         }),
         new Promise((_, reject) => 
           setTimeout(() => reject(new Error("Database operation timeout")), 5000)
@@ -111,9 +116,13 @@ export const registerUser = asyncHandler(async (req, res) => {
           consultation_type: consultation_type || "Both",
           consultation_fee: parseFloat(consultation_fee) || 0,
           verification_status: "partially_verified",
+          // Legacy fields (keep for backward compatibility)
           isEmailVerified: false,
           emailVerificationToken: verificationToken,
-          emailVerificationExpires: verificationExpires
+          emailVerificationExpires: verificationExpires,
+          // New simplified verification fields
+          isVerified: false,
+          verificationToken: verificationToken // Token expires in 1 hour
         }),
         new Promise((_, reject) => 
           setTimeout(() => reject(new Error("Database operation timeout")), 5000)
@@ -129,9 +138,13 @@ export const registerUser = asyncHandler(async (req, res) => {
 
   const userResponse = { ...newUser._doc };
   delete userResponse.password;
+  delete userResponse.verificationToken; // Don't send token in response
 
-  // Send verification email
-  const verificationUrl = `${process.env.FRONTEND_URL || "http://localhost:5173"}/verify-email?token=${verificationToken}&email=${encodeURIComponent(email)}&role=${role}`;
+  // Generate JWT token for immediate login (verification not required)
+  const token = generateToken({ id: newUser._id, role: newUser.role });
+
+  // Send verification email asynchronously (don't block registration)
+  const verificationUrl = `${process.env.FRONTEND_URL || "http://localhost:5173"}/verify-email/${verificationToken}`;
   
   const emailHtml = `
     <!DOCTYPE html>
@@ -152,13 +165,13 @@ export const registerUser = asyncHandler(async (req, res) => {
           <h1>Welcome to SwasthyaConnect</h1>
         </div>
         <div class="content">
-          <h2>Verify Your Email Address</h2>
-          <p>Thank you for registering with SwasthyaConnect! Please verify your email address to activate your account.</p>
-          <p>Click the button below to verify your email:</p>
+          <h2>Verify Your SwasthyaConnect Account</h2>
+          <p>Thank you for registering with SwasthyaConnect! Please verify your email address to complete your registration.</p>
+          <p>Click the button below to verify your account:</p>
           <a href="${verificationUrl}" class="button">Verify Email</a>
           <p>Or copy and paste this link into your browser:</p>
           <p style="word-break: break-all; color: #14b8a6;">${verificationUrl}</p>
-          <p><strong>This link will expire in 24 hours.</strong></p>
+          <p><strong>Note:</strong> You can use the app even without verifying, but verification is recommended for enhanced security.</p>
           <p>If you didn't create an account with SwasthyaConnect, please ignore this email.</p>
         </div>
         <div class="footer">
@@ -169,17 +182,16 @@ export const registerUser = asyncHandler(async (req, res) => {
     </html>
   `;
 
-  try {
-    await sendMail({
-      to: email,
-      subject: "Verify Your Email - SwasthyaConnect",
-      html: emailHtml,
-      text: `Please verify your email by clicking this link: ${verificationUrl}`,
-    });
-  } catch (emailError) {
+  // Send email asynchronously - don't block registration response
+  sendMail({
+    to: email,
+    subject: "Verify Your SwasthyaConnect Account",
+    html: emailHtml,
+    text: `Please verify your email by clicking this link: ${verificationUrl}`,
+  }).catch((emailError) => {
     console.error("Failed to send verification email:", emailError);
-    // Don't fail registration if email fails
-  }
+    // Don't fail registration if email fails - user can still use the app
+  });
 
   // Send response immediately
   res
@@ -204,12 +216,12 @@ export const loginUser = asyncHandler(async (req, res) => {
     throw new ApiError(503, "Database not available. Please try again later.");
   }
 
-  // Fast query with timeout
+  // Fast query with timeout - also select isVerified fields
   let user;
   try {
     const userQuery = role === "patient"
-      ? Patient.findOne({ email }).select("+password").lean()
-      : Doctor.findOne({ email }).select("+password").lean();
+      ? Patient.findOne({ email }).select("+password +isVerified +isEmailVerified").lean()
+      : Doctor.findOne({ email }).select("+password +isVerified +isEmailVerified").lean();
 
     user = await Promise.race([
       userQuery,
@@ -226,9 +238,10 @@ export const loginUser = asyncHandler(async (req, res) => {
 
   if (!user) throw new ApiError(401, "Invalid credentials");
 
-  // Check if email is verified
-  if (!user.isEmailVerified) {
-    throw new ApiError(403, "Please verify your email before logging in. Check your inbox for the verification link.");
+  // Check if email is verified (check both isEmailVerified and isVerified for backward compatibility)
+  const isVerified = user.isVerified !== undefined ? user.isVerified : user.isEmailVerified;
+  if (!isVerified) {
+    throw new ApiError(403, "Please verify your email first. Check your inbox for the verification link.");
   }
 
   // Fast password comparison

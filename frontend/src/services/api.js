@@ -162,6 +162,14 @@ export const gamificationAPI = {
 export const verificationAPI = {
   sendVerificationEmail: (data) => api.post('/verification/send', data),
   verifyEmail: (token, email, role) => api.get(`/verification/verify?token=${token}&email=${encodeURIComponent(email)}&role=${role}`),
+  // New simplified verification endpoint (token only in URL)
+  verifyEmailByToken: (token) => api.get(`/auth/verify-email/${token}`),
+};
+
+// Password Reset
+export const passwordAPI = {
+  forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
+  resetPassword: (token, password, confirmPassword) => api.post(`/auth/reset-password/${token}`, { password, confirmPassword }),
 };
 
 // Messages

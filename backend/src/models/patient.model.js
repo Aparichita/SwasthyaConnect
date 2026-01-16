@@ -34,6 +34,24 @@ const patientSchema = new mongoose.Schema(
       type: Date,
       select: false,
     },
+    // New simplified verification fields
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    verificationToken: {
+      type: String,
+      select: false,
+    },
+    // Password reset fields
+    passwordResetToken: {
+      type: String,
+      select: false,
+    },
+    passwordResetExpires: {
+      type: Date,
+      select: false,
+    },
     password: {
       type: String,
       required: [true, "Password is required"],

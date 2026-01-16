@@ -17,6 +17,13 @@ import Notifications from './pages/Notifications';
 import Profile from './pages/Profile';
 import Home from './pages/Home';
 import VerifyEmail from './pages/VerifyEmail';
+import DoctorMessages from './pages/DoctorMessages';
+import PatientMessages from './pages/PatientMessages';
+import DoctorMessagesList from './pages/DoctorMessagesList';
+import PatientMessagesList from './pages/PatientMessagesList';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
+import VerifyEmailRequired from './pages/VerifyEmailRequired';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
@@ -59,6 +66,12 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     if (!userRole || !allowedRoles.includes(userRole)) {
       return <Navigate to="/" replace />;
     }
+  }
+
+  // Check if user is verified (mandatory for protected routes)
+  const isVerified = user?.isVerified === true || user?.isEmailVerified === true;
+  if (!isVerified) {
+    return <Navigate to="/verify-email-required" replace />;
   }
 
   return children;
@@ -112,8 +125,32 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/verify-email/:token"
+        element={<VerifyEmail />}
+      />
+      <Route
         path="/verify-email"
         element={<VerifyEmail />}
+      />
+      <Route
+        path="/forgot-password"
+        element={
+          <PublicRoute>
+            <ForgotPassword />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/reset-password/:token"
+        element={
+          <PublicRoute>
+            <ResetPassword />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/verify-email-required"
+        element={<VerifyEmailRequired />}
       />
 
       {/* Patient Routes */}
@@ -165,6 +202,22 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/patient/messages"
+        element={
+          <ProtectedRoute allowedRoles={['patient']}>
+            <PatientMessagesList />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/patient/messages/:appointmentId"
+        element={
+          <ProtectedRoute allowedRoles={['patient']}>
+            <PatientMessages />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Doctor Routes */}
       <Route
@@ -212,6 +265,22 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={['doctor']}>
             <Profile />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/doctor/messages"
+        element={
+          <ProtectedRoute allowedRoles={['doctor']}>
+            <DoctorMessagesList />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/doctor/messages/:appointmentId"
+        element={
+          <ProtectedRoute allowedRoles={['doctor']}>
+            <DoctorMessages />
           </ProtectedRoute>
         }
       />

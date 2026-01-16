@@ -26,6 +26,24 @@ const doctorSchema = new mongoose.Schema(
       type: Date,
       select: false,
     },
+    // New simplified verification fields
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
+    verificationToken: {
+      type: String,
+      select: false,
+    },
+    // Password reset fields
+    passwordResetToken: {
+      type: String,
+      select: false,
+    },
+    passwordResetExpires: {
+      type: Date,
+      select: false,
+    },
     phone: {
       type: String,
       required: [true, "Phone number is required"],
