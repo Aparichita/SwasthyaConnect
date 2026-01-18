@@ -1,7 +1,6 @@
 import express from "express";
-import { loginUser, getCurrentUser, registerUser } from "../controllers/auth.controller.js";
+import { loginUser, getCurrentUser, registerUser ,verifyEmail,} from "../controllers/auth.controller.js";
 import { verifyToken } from "../middlewares/auth.middleware.js";
-import { verifyEmail } from "../controllers/verification-simple.controller.js";
 import { forgotPassword, resetPassword } from "../controllers/password.controller.js";
 import { resendVerification } from "../controllers/resend-verification.controller.js";
 
@@ -62,6 +61,7 @@ router.post("/forgot-password", forgotPassword);
  * Body: { "password": "newPassword123!", "confirmPassword": "newPassword123!" }
  */
 router.post("/reset-password/:token", resetPassword);
+router.get("/verify-email/:token", verifyEmail);
 
 /**
  * @route POST /api/auth/resend-verification

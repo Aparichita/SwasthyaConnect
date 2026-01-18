@@ -1,4 +1,4 @@
-// src/controllers/auth.controller.js
+// backend/src/controllers/auth.controller.js
 import Patient from "../models/patient.model.js";
 import Doctor from "../models/doctor.model.js";
 import mongoose from "mongoose";
@@ -17,10 +17,20 @@ import crypto from "crypto";
  */
 export const registerUser = asyncHandler(async (req, res) => {
   const {
-    name, email, password, role,
-    qualification, specialization, phone, city,
-    medical_registration_number, state_medical_council,
-    experience, clinic_name, consultation_type, consultation_fee
+    name,
+    email,
+    password,
+    role,
+    qualification,
+    specialization,
+    phone,
+    city,
+    medical_registration_number,
+    state_medical_council,
+    experience,
+    clinic_name,
+    consultation_type,
+    consultation_fee,
   } = req.body;
 
   if (!name || !email || !password || !role) {
@@ -32,11 +42,8 @@ export const registerUser = asyncHandler(async (req, res) => {
   }
 
   // Check if user exists
-  const [existingPatient, existingDoctor] = await Promise.all([
-    Patient.findOne({ email }).lean(),
-    Doctor.findOne({ email }).lean()
-  ]);
-  const existingUser = existingPatient || existingDoctor;
+  let existingUser = await Patient.findOne({ email }).lean();
+  if (!existingUser) existingUser = await Doctor.findOne({ email }).lean();
 
   if (existingUser && existingUser.isVerified) {
     throw new ApiError(400, "User with this email already exists");
@@ -44,25 +51,36 @@ export const registerUser = asyncHandler(async (req, res) => {
 
   // Generate verification token
   const verificationToken = crypto.randomBytes(32).toString("hex");
-  const verificationExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour expiry
+  const verificationExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
   let newUser;
   if (role === "patient") {
     newUser = await Patient.create({
-      name, email, password, role, city,
+      name,
+      email,
+      password,
+      role,
+      city,
       isVerified: false,
       verificationToken,
       emailVerificationToken: verificationToken, // legacy
-      emailVerificationExpires: verificationExpires
+      emailVerificationExpires: verificationExpires,
     });
   } else {
-    if (!qualification || !specialization || !phone || !medical_registration_number ||
-        !state_medical_council || !experience || !consultation_fee) {
+    if (!qualification || !specialization || !phone || !medical_registration_number || !state_medical_council || !experience || !consultation_fee) {
       throw new ApiError(400, "All doctor fields are required");
     }
     newUser = await Doctor.create({
-      name, email, password, role, qualification, specialization, phone, city,
-      medical_registration_number, state_medical_council,
+      name,
+      email,
+      password,
+      role,
+      qualification,
+      specialization,
+      phone,
+      city,
+      medical_registration_number,
+      state_medical_council,
       experience: parseInt(experience) || 0,
       clinic_name,
       consultation_type: consultation_type || "Both",
@@ -70,41 +88,38 @@ export const registerUser = asyncHandler(async (req, res) => {
       isVerified: false,
       verificationToken,
       emailVerificationToken: verificationToken, // legacy
-      emailVerificationExpires: verificationExpires
+      emailVerificationExpires: verificationExpires,
     });
   }
 
-  // JWT token for immediate login
-  const token = generateToken({ id: newUser._id, role: newUser.role });
-
   // Send verification email
-  const frontendUrl = process.env.FRONTEND_URL;
-  if (!frontendUrl) console.warn("⚠️ FRONTEND_URL not set in .env!");
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
+  const verificationUrl = `${frontendUrl}/verify-email/${verificationToken}`;
 
-  const verificationUrl = `${frontendUrl || "http://localhost:5173"}/verify-email/${verificationToken}`;
   const emailHtml = `
-    <p>Welcome to SwasthyaConnect!</p>
-    <p>Please verify your email by clicking the link below:</p>
-    <a href="${verificationUrl}">Verify Email</a>
-    <p>Or copy this link into your browser: ${verificationUrl}</p>
+    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#333">
+      <h2>Welcome to SwasthyaConnect</h2>
+      <p>Thank you for registering! Please verify your email:</p>
+      <a href="${verificationUrl}" style="display:inline-block;padding:12px 20px;background:#14b8a6;color:#fff;border-radius:5px;text-decoration:none;">Verify Email</a>
+      <p>Or paste this link in your browser: ${verificationUrl}</p>
+    </div>
   `;
 
   sendMail({
     to: email,
     subject: "Verify Your SwasthyaConnect Account",
     html: emailHtml,
-    text: `Please verify your email by visiting: ${verificationUrl}`
-  }).catch(err => console.error("Failed to send verification email:", err));
+    text: `Verify your email: ${verificationUrl}`,
+  }).catch((err) => console.error("Email sending failed:", err));
 
+  const token = generateToken({ id: newUser._id, role: newUser.role });
   const userResponse = { ...newUser._doc };
   delete userResponse.password;
   delete userResponse.verificationToken;
 
-  res.status(201).json(new ApiResponse(
-    201,
-    { user: userResponse, token },
-    "User registered successfully. Please check your email to verify your account."
-  ));
+  res.status(201).json(
+    new ApiResponse(201, { user: userResponse, token }, "User registered successfully. Please check your email to verify your account.")
+  );
 });
 
 /**
@@ -114,66 +129,57 @@ export const registerUser = asyncHandler(async (req, res) => {
  */
 export const loginUser = asyncHandler(async (req, res) => {
   const { email, password, role } = req.body;
-  if (!email || !password || !role) {
-    throw new ApiError(400, "Email, password, and role are required");
-  }
 
-  if (mongoose.connection.readyState !== 1) {
-    throw new ApiError(503, "Database not available. Please try again later.");
-  }
+  if (!email || !password || !role) throw new ApiError(400, "Email, password, and role are required");
 
-  const UserModel = role === "patient" ? Patient : Doctor;
+  let user = role === "patient"
+    ? await Patient.findOne({ email }).select("+password +isVerified +verificationToken +emailVerificationToken +emailVerificationExpires")
+    : await Doctor.findOne({ email }).select("+password +isVerified +verificationToken +emailVerificationToken +emailVerificationExpires");
 
-  // Find user and include verificationToken and password
-  let userDoc = await UserModel.findOne({ email })
-    .select("+password +verificationToken +emailVerificationToken +emailVerificationExpires");
+  if (!user) throw new ApiError(401, "Invalid credentials");
 
-  if (!userDoc) throw new ApiError(401, "Invalid credentials");
+  const isVerified = user.isVerified || false;
 
-  const isVerified = userDoc.isVerified || userDoc.isEmailVerified;
+  // If not verified, send verification email
   if (!isVerified) {
-    // Always generate a new token on unverified login
-    const newToken = crypto.randomBytes(32).toString("hex");
-    userDoc.verificationToken = newToken;
-    userDoc.emailVerificationToken = newToken; // legacy
-    userDoc.emailVerificationExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-    await userDoc.save();
+    if (!user.verificationToken) {
+      user.verificationToken = crypto.randomBytes(32).toString("hex");
+      user.emailVerificationToken = user.verificationToken;
+      user.emailVerificationExpires = new Date(Date.now() + 60 * 60 * 1000);
+      await user.save();
+    }
 
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-    const verificationUrl = `${frontendUrl}/verify-email/${newToken}`;
+    const verificationUrl = `${frontendUrl}/verify-email/${user.verificationToken}`;
+
     const emailHtml = `
-      <p>You attempted to login but your email is not verified.</p>
-      <p>Please verify your email by clicking the link below:</p>
-      <a href="${verificationUrl}">Verify Email</a>
-      <p>Or copy this link: ${verificationUrl}</p>
+      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#333">
+        <h2>Verify Your Email Address</h2>
+        <p>Please verify your email by clicking below:</p>
+        <a href="${verificationUrl}" style="display:inline-block;padding:12px 20px;background:#14b8a6;color:#fff;border-radius:5px;text-decoration:none;">Verify Email</a>
+        <p>Or paste this link in your browser: ${verificationUrl}</p>
+      </div>
     `;
 
-    try {
-      await sendMail({
-        to: email,
-        subject: "Verify Your SwasthyaConnect Account",
-        html: emailHtml,
-        text: `Verify your email: ${verificationUrl}`
-      });
-      console.log(`✅ Verification email sent to ${email}`);
-    } catch (err) {
-      console.error("Failed to send verification email on login:", err);
-    }
+    await sendMail({
+      to: email,
+      subject: "Verify Your SwasthyaConnect Account",
+      html: emailHtml,
+      text: `Verify your email: ${verificationUrl}`,
+    }).catch((err) => console.error("Email sending failed on login:", err));
 
     return res.status(403).json({
       success: false,
-      message: "Check your inbox. A verification email has been sent."
+      message: "Check your inbox. A verification email has been sent.",
     });
   }
 
-  // Verify password
-  const isMatch = await bcrypt.compare(password, userDoc.password);
+  const isMatch = await bcrypt.compare(password, user.password);
   if (!isMatch) throw new ApiError(401, "Invalid credentials");
 
-  const token = generateToken({ id: userDoc._id, role: userDoc.role });
-  const userResponse = { ...userDoc._doc };
+  const token = generateToken({ id: user._id, role: user.role });
+  const userResponse = { ...user._doc };
   delete userResponse.password;
-  delete userResponse.verificationToken;
 
   res.status(200).json(new ApiResponse(200, { user: userResponse, token }, "Login successful"));
 });
@@ -188,10 +194,53 @@ export const getCurrentUser = asyncHandler(async (req, res) => {
 
   const { id, role } = req.user;
   let userDoc = null;
+
   if (role === "patient") userDoc = await Patient.findById(id).select("-password");
   else if (role === "doctor") userDoc = await Doctor.findById(id).select("-password");
 
   if (!userDoc) throw new ApiError(404, "User not found");
 
   res.status(200).json(new ApiResponse(200, userDoc, "User info fetched successfully"));
+});
+export const verifyEmail = asyncHandler(async (req, res) => {
+  const { token } = req.params;
+
+  if (!token) {
+    throw new ApiError(400, "Verification token is missing");
+  }
+
+  // Try patient first
+  let user = await Patient.findOne({
+    emailVerificationToken: token,
+    emailVerificationExpires: { $gt: Date.now() },
+  });
+
+  // If not patient, try doctor
+  if (!user) {
+    user = await Doctor.findOne({
+      emailVerificationToken: token,
+      emailVerificationExpires: { $gt: Date.now() },
+    });
+  }
+
+  if (!user) {
+    throw new ApiError(400, "Invalid or expired verification token");
+  }
+
+  // ✅ Mark verified
+  user.isVerified = true;
+  user.isEmailVerified = true; // optional but frontend supports this
+  user.emailVerificationToken = undefined;
+  user.emailVerificationExpires = undefined;
+  user.verificationToken = undefined;
+
+  await user.save();
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      { verified: true },
+      "Email verified successfully"
+    )
+  );
 });
