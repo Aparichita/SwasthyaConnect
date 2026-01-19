@@ -13,10 +13,40 @@ import { generateToken } from "../utils/token.js";
  * @access Public
  */
 export const registerDoctor = asyncHandler(async (req, res) => {
-  const { name, email, password, specialization, city, phone, qualification } = req.body;
+  const {
+    name,
+    email,
+    password,
+    specialization,
+    city,
+    phone,
+    qualification,
+    medical_registration_number,
+    state_medical_council,
+    experience,
+    clinic_name,
+    consultation_type,
+    consultation_fee,
+  } = req.body;
 
   if (!name || !email || !password) {
     throw new ApiError(400, "Name, email and password are required");
+  }
+
+  // Validate all required doctor fields
+  if (
+    !specialization ||
+    !qualification ||
+    !phone ||
+    !medical_registration_number ||
+    !state_medical_council ||
+    !experience ||
+    !consultation_fee
+  ) {
+    throw new ApiError(
+      400,
+      "All doctor fields are required: specialization, qualification, phone, medical_registration_number, state_medical_council, experience, consultation_fee"
+    );
   }
 
   // Check if MongoDB is connected
@@ -50,10 +80,16 @@ export const registerDoctor = asyncHandler(async (req, res) => {
         name,
         email,
         password, // Password will be hashed by pre-save hook
-        specialization: specialization || "General",
-        qualification: qualification || "MBBS",
+        specialization,
+        qualification,
         city,
-        phone: phone || "0000000000",
+        phone,
+        medical_registration_number,
+        state_medical_council,
+        experience: parseInt(experience) || 0,
+        clinic_name,
+        consultation_type: consultation_type || "Both",
+        consultation_fee: parseFloat(consultation_fee) || 0,
         role: "doctor",
       }),
       new Promise((_, reject) => 

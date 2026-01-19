@@ -35,48 +35,34 @@ const Register = () => {
 
   // Password validation
   const validatePassword = (password) => {
-    if (password.length < 8 || password.length > 32) {
+    if (password.length < 8 || password.length > 32)
       return 'Password must be between 8 and 32 characters';
-    }
-    if (!/[a-zA-Z]/.test(password)) {
-      return 'Password must contain at least one letter';
-    }
-    if (!/\d/.test(password)) {
-      return 'Password must contain at least one number';
-    }
-    if (!/[@$!%*?&#]/.test(password)) {
+    if (!/[a-zA-Z]/.test(password)) return 'Password must contain at least one letter';
+    if (!/\d/.test(password)) return 'Password must contain at least one number';
+    if (!/[@$!%*?&#]/.test(password))
       return 'Password must contain at least one special character (@$!%*?&#)';
-    }
     return '';
   };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData({ ...formData, [name]: type === 'checkbox' ? checked : value });
-    
-    // Validate password in real-time
-    if (name === 'password') {
-      const error = validatePassword(value);
-      setPasswordError(error);
-    } else if (name === 'confirmPassword') {
-      if (value !== formData.password) {
-        setPasswordError('Passwords do not match');
-      } else {
-        setPasswordError('');
-      }
-    }
+    setFormData((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }));
+
+    // Real-time password validation
+    if (name === 'password') setPasswordError(validatePassword(value));
+    if (name === 'confirmPassword')
+      setPasswordError(value !== formData.password ? 'Passwords do not match' : '');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validate password
+
+    // Password validation
     const pwdError = validatePassword(formData.password);
     if (pwdError) {
       setPasswordError(pwdError);
       return;
     }
-    
     if (formData.password !== formData.confirmPassword) {
       setPasswordError('Passwords do not match');
       return;
@@ -84,8 +70,12 @@ const Register = () => {
 
     // Doctor-specific validation
     if (formData.role === 'doctor') {
-      if (!formData.medical_registration_number || !formData.state_medical_council || 
-          !formData.experience || !formData.consultation_fee) {
+      if (
+        !formData.medical_registration_number ||
+        !formData.state_medical_council ||
+        !formData.experience ||
+        !formData.consultation_fee
+      ) {
         setError('Please fill all required doctor fields');
         return;
       }
@@ -99,6 +89,7 @@ const Register = () => {
     setError('');
     setPasswordError('');
 
+    // Build payload
     const data = {
       name: formData.name,
       email: formData.email,
@@ -122,32 +113,26 @@ const Register = () => {
       if (formData.clinic_name) data.clinic_name = formData.clinic_name;
     }
 
-    setError(''); // Clear previous errors
-    
+    console.log('🚀 Sending data:', data); // Debug: verify all fields
+
     try {
       const result = await register(data, formData.role);
-      
+
       if (result.success) {
         console.log('✅ Registration result:', result);
         setSuccess(true);
-        setError('');
+        toast.success(
+          'A verification email has been sent to your email address. Please check your inbox.'
+        );
         setLoading(false);
-        toast.success('A verification email has been sent to your email address. Please check your inbox.');
-        // Don't redirect - user needs to verify email first
       } else {
         console.error('❌ Registration failed:', result);
-        // Show network error with helpful message
-        if (result.error?.includes('Network') || result.error?.includes('ERR_NETWORK')) {
-          setError('Cannot connect to server. Please make sure the backend is running on http://localhost:5000');
-        } else {
-          setError(result.error || 'Registration failed. Please try again.');
-        }
+        setError(result.error || 'Registration failed. Please try again.');
         setLoading(false);
       }
-    } catch (error) {
-      console.error('❌ Registration error:', error);
-      const errorMessage = error.response?.data?.message || error.message || 'Registration failed. Please try again.';
-      setError(errorMessage);
+    } catch (err) {
+      console.error('❌ Registration error:', err);
+      setError(err.response?.data?.message || err.message || 'Registration failed.');
       setLoading(false);
     }
   };
@@ -166,10 +151,9 @@ const Register = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Role selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Role
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
               <select
                 name="role"
                 value={formData.role}
@@ -182,10 +166,9 @@ const Register = () => {
               </select>
             </div>
 
+            {/* Name & Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Name
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
               <input
                 type="text"
                 name="name"
@@ -195,11 +178,8 @@ const Register = () => {
                 required
               />
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
               <input
                 type="email"
                 name="email"
@@ -210,10 +190,9 @@ const Register = () => {
               />
             </div>
 
+            {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Password
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
               <input
                 type="password"
                 name="password"
@@ -227,18 +206,14 @@ const Register = () => {
                 maxLength={32}
                 placeholder="8-32 chars, 1 letter, 1 number, 1 special char"
               />
-              {passwordError && (
-                <p className="text-red-600 text-xs mt-1">{passwordError}</p>
-              )}
+              {passwordError && <p className="text-red-600 text-xs mt-1">{passwordError}</p>}
               <p className="text-gray-500 text-xs mt-1">
-                Must be 8-32 characters with at least one letter, one number, and one special character (@$!%*?&#)
+                Must be 8-32 characters with at least one letter, one number, and one special
+                character (@$!%*?&#)
               </p>
             </div>
-
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Confirm Password
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
               <input
                 type="password"
                 name="confirmPassword"
@@ -249,12 +224,11 @@ const Register = () => {
               />
             </div>
 
+            {/* Patient fields */}
             {formData.role === 'patient' && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Age
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Age</label>
                   <input
                     type="number"
                     name="age"
@@ -264,9 +238,7 @@ const Register = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    City
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
                   <input
                     type="text"
                     name="city"
@@ -276,9 +248,7 @@ const Register = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
                   <input
                     type="tel"
                     name="phone"
@@ -291,8 +261,10 @@ const Register = () => {
               </>
             )}
 
+            {/* Doctor fields */}
             {formData.role === 'doctor' && (
               <>
+                {/* Specialization, Qualification, Registration Number, State, Experience */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Specialization <span className="text-red-500">*</span>
@@ -315,6 +287,7 @@ const Register = () => {
                     <option value="Psychiatry">Psychiatry</option>
                   </select>
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Qualification <span className="text-red-500">*</span>
@@ -324,11 +297,12 @@ const Register = () => {
                     name="qualification"
                     value={formData.qualification}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     placeholder="MBBS, MD, etc."
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     required
                   />
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Medical Registration Number <span className="text-red-500">*</span>
@@ -338,11 +312,12 @@ const Register = () => {
                     name="medical_registration_number"
                     value={formData.medical_registration_number}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     placeholder="Enter registration number"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     required
                   />
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     State Medical Council <span className="text-red-500">*</span>
@@ -365,6 +340,7 @@ const Register = () => {
                     <option value="Uttar Pradesh Medical Council">Uttar Pradesh Medical Council</option>
                   </select>
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Years of Experience <span className="text-red-500">*</span>
@@ -374,28 +350,26 @@ const Register = () => {
                     name="experience"
                     value={formData.experience}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     min="0"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     required
                   />
                 </div>
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Clinic / Hospital Name
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Clinic / Hospital Name</label>
                   <input
                     type="text"
                     name="clinic_name"
                     value={formData.clinic_name}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     placeholder="Enter clinic or hospital name"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   />
                 </div>
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Consultation Type <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Consultation Type <span className="text-red-500">*</span></label>
                   <select
                     name="consultation_type"
                     value={formData.consultation_type}
@@ -408,10 +382,9 @@ const Register = () => {
                     <option value="Both">Both</option>
                   </select>
                 </div>
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    City
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
                   <input
                     type="text"
                     name="city"
@@ -420,33 +393,32 @@ const Register = () => {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   />
                 </div>
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Consultation Fee (₹) <span className="text-red-500">*</span>
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Consultation Fee (₹) <span className="text-red-500">*</span></label>
                   <input
                     type="number"
                     name="consultation_fee"
                     value={formData.consultation_fee}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     min="0"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     required
                   />
                 </div>
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Phone
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
                   <input
                     type="tel"
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                     placeholder="9876543210"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   />
                 </div>
+
                 <div className="flex items-start">
                   <input
                     type="checkbox"
@@ -460,37 +432,12 @@ const Register = () => {
                     I declare that the information provided is correct. <span className="text-red-500">*</span>
                   </label>
                 </div>
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
-                  <p className="font-semibold">⚠️ Verification Status:</p>
-                  <p>🟡 Partially Verified (Demo Mode)</p>
-                  <p className="text-xs mt-1">Your account will be activated immediately. Full verification is pending.</p>
-                </div>
               </>
             )}
 
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-                <p className="font-semibold">Error:</p>
-                <p className="text-sm">{error}</p>
-                {error.includes('Cannot connect') && (
-                  <p className="text-xs mt-2">
-                    💡 Make sure backend is running: <code className="bg-red-100 px-2 py-1 rounded">cd backend && npm run dev</code>
-                  </p>
-                )}
-              </div>
-            )}
-
-            {success && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
-                <p className="font-semibold text-green-800">✅ Registration Successful!</p>
-                <p className="text-sm text-green-700 mt-2">
-                  A verification email has been sent to your email address. Please check your inbox.
-                </p>
-                <p className="text-xs text-green-600 mt-2">
-                  You must verify your email before you can access protected routes like Dashboard, Messages, and Profile.
-                </p>
-              </div>
-            )}
+            {/* Error & Success messages */}
+            {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg"><p>{error}</p></div>}
+            {success && <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg"><p>✅ Registration Successful! Check your email for verification.</p></div>}
 
             <button
               type="submit"
@@ -514,4 +461,3 @@ const Register = () => {
 };
 
 export default Register;
-

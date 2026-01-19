@@ -61,7 +61,6 @@ router.post("/forgot-password", forgotPassword);
  * Body: { "password": "newPassword123!", "confirmPassword": "newPassword123!" }
  */
 router.post("/reset-password/:token", resetPassword);
-router.get("/verify-email/:token", verifyEmail);
 
 /**
  * @route POST /api/auth/resend-verification
