@@ -45,34 +45,87 @@ export const registerUser = asyncHandler(async (req, res) => {
     emailVerificationExpires: Date.now() + 60 * 60 * 1000, // 1 hour
   };
 
+  console.log("📝 Creating user account...");
   let user;
   if (role === "patient") {
     user = await Patient.create(commonData);
   } else {
     user = await Doctor.create({ ...commonData, ...rest });
   }
+  console.log("✅ User created successfully");
 
-  // ✅ SAVE FIRST, THEN SEND EMAIL
-  await user.save();
-
+  // ✅ CRITICAL: Send email IMMEDIATELY after user creation
   const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
   const verificationUrl = `${frontendUrl}/verify-email/${verificationToken}`;
 
-  await sendMail({
-    to: email,
-    subject: "Verify Your SwasthyaConnect Account",
-    html: `
-      <h2>Welcome to SwasthyaConnect</h2>
-      <p>Please verify your email:</p>
-      <a href="${verificationUrl}">Verify Email</a>
-    `,
-  });
+  console.log("📧 Preparing to send verification email...");
+  console.log("   To:", email);
+  console.log("   Verification URL:", verificationUrl);
+
+  // Send email synchronously (don't use try-catch that swallows errors)
+  try {
+    await sendMail({
+      to: email,
+      subject: "Verify Your SwasthyaConnect Account",
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .header { background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+            .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+            .button { display: inline-block; padding: 12px 30px; background: #14b8a6; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+            .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>Welcome to SwasthyaConnect</h1>
+            </div>
+            <div class="content">
+              <h2>Hi ${name},</h2>
+              <p>Thank you for registering with SwasthyaConnect! Please verify your email address to complete your registration.</p>
+              <p style="text-align: center;">
+                <a href="${verificationUrl}" class="button">Verify Email Address</a>
+              </p>
+              <p>Or copy and paste this link into your browser:</p>
+              <p style="word-break: break-all; color: #14b8a6; font-size: 12px;">${verificationUrl}</p>
+              <p><strong>This link will expire in 1 hour.</strong></p>
+              <p>If you didn't create an account with SwasthyaConnect, please ignore this email.</p>
+            </div>
+            <div class="footer">
+              <p>&copy; 2024 SwasthyaConnect. All rights reserved.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `Welcome to SwasthyaConnect! Please verify your email by clicking this link: ${verificationUrl}. This link will expire in 1 hour.`,
+    });
+
+    console.log("✅ Verification email sent successfully to:", email);
+  } catch (emailError) {
+    console.error("❌ Failed to send verification email:", emailError);
+    console.error("   Email:", email);
+    console.error("   Error details:", emailError.message);
+    
+    // Delete the user if email fails
+    await user.deleteOne();
+    
+    throw new ApiError(
+      500, 
+      "Registration failed: Could not send verification email. Please try again or check your email address."
+    );
+  }
 
   res.status(201).json(
     new ApiResponse(
       201,
       null,
-      "Registration successful. Verification email sent."
+      "Registration successful! Please check your email for verification link."
     )
   );
 });
@@ -94,6 +147,7 @@ export const loginUser = asyncHandler(async (req, res) => {
   if (!isMatch) throw new ApiError(401, "Invalid credentials");
 
   if (!user.isVerified) {
+    // Generate new token for unverified users
     const newToken = crypto.randomBytes(32).toString("hex");
 
     user.emailVerificationToken = newToken;
@@ -103,15 +157,52 @@ export const loginUser = asyncHandler(async (req, res) => {
     const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
     const verificationUrl = `${frontendUrl}/verify-email/${newToken}`;
 
-    await sendMail({
-      to: email,
-      subject: "Verify Your Email",
-      html: `<a href="${verificationUrl}">Verify Email</a>`,
-    });
+    console.log("📧 Sending verification email to unverified user:", email);
+    
+    try {
+      await sendMail({
+        to: email,
+        subject: "Verify Your SwasthyaConnect Account",
+        html: `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <style>
+              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+              .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+              .header { background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+              .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+              .button { display: inline-block; padding: 12px 30px; background: #14b8a6; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1>Verify Your Email</h1>
+              </div>
+              <div class="content">
+                <h2>Hi ${user.name},</h2>
+                <p>You attempted to log in, but your email is not verified yet.</p>
+                <p style="text-align: center;">
+                  <a href="${verificationUrl}" class="button">Verify Email Address</a>
+                </p>
+                <p>Or copy this link: <br><span style="word-break: break-all; color: #14b8a6; font-size: 12px;">${verificationUrl}</span></p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `,
+        text: `Please verify your email: ${verificationUrl}`,
+      });
+      
+      console.log("✅ Verification email sent to:", email);
+    } catch (emailError) {
+      console.error("❌ Failed to send verification email:", emailError);
+    }
 
     return res.status(403).json({
       success: false,
-      message: "Check your inbox. Verification email sent.",
+      message: "Please verify your email. A new verification link has been sent to your inbox.",
     });
   }
 
@@ -126,8 +217,16 @@ export const loginUser = asyncHandler(async (req, res) => {
 /* ======================================================
    VERIFY EMAIL
 ====================================================== */
+// backend/src/controllers/auth.controller.js
+// Replace ONLY the verifyEmail function with this:
+
+/* ======================================================
+   VERIFY EMAIL
+====================================================== */
 export const verifyEmail = asyncHandler(async (req, res) => {
   const { token } = req.params;
+
+  console.log('🔍 Verifying email with token:', token);
 
   const user =
     (await Patient.findOne({
@@ -140,17 +239,76 @@ export const verifyEmail = asyncHandler(async (req, res) => {
     }));
 
   if (!user) {
+    console.error('❌ Invalid or expired token');
     throw new ApiError(400, "Invalid or expired verification token");
   }
 
+  console.log('✅ User found:', user.email);
+
   user.isVerified = true;
+  user.isEmailVerified = true; // Set both for compatibility
   user.emailVerificationToken = undefined;
   user.emailVerificationExpires = undefined;
   await user.save();
 
+  console.log('✅ Email verified successfully for:', user.email);
+
+  // ✅ FIX: Instead of res.redirect, send HTML that redirects client-side
   const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-  res.redirect(`${frontendUrl}/email-verified-success`);
+  const successUrl = `${frontendUrl}/email-verified-success`;
+  
+  res.status(200).send(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <meta http-equiv="refresh" content="0;url=${successUrl}">
+      <title>Email Verified</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 100vh;
+          margin: 0;
+          background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+          color: white;
+        }
+        .container {
+          text-align: center;
+          padding: 2rem;
+        }
+        .checkmark {
+          font-size: 4rem;
+          margin-bottom: 1rem;
+        }
+        h1 {
+          margin: 0 0 1rem 0;
+        }
+        p {
+          margin: 0.5rem 0;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="checkmark">✅</div>
+        <h1>Email Verified!</h1>
+        <p>Your email has been verified successfully.</p>
+        <p>Redirecting you to login...</p>
+      </div>
+      <script>
+        // Redirect after a short delay
+        setTimeout(() => {
+          window.location.href = '${successUrl}';
+        }, 1000);
+      </script>
+    </body>
+    </html>
+  `);
 });
+
 /* ======================================================
    GET CURRENT USER
 ====================================================== */

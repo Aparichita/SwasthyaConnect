@@ -54,88 +54,99 @@ const Register = () => {
       setPasswordError(value !== formData.password ? 'Passwords do not match' : '');
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  // frontend/src/pages/Register.jsx
+// Replace the handleSubmit function with this:
 
-    // Password validation
-    const pwdError = validatePassword(formData.password);
-    if (pwdError) {
-      setPasswordError(pwdError);
+const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  // Password validation
+  const pwdError = validatePassword(formData.password);
+  if (pwdError) {
+    setPasswordError(pwdError);
+    return;
+  }
+  if (formData.password !== formData.confirmPassword) {
+    setPasswordError('Passwords do not match');
+    return;
+  }
+
+  // Doctor-specific validation
+  if (formData.role === 'doctor') {
+    if (
+      !formData.medical_registration_number ||
+      !formData.state_medical_council ||
+      !formData.experience ||
+      !formData.consultation_fee
+    ) {
+      setError('Please fill all required doctor fields');
       return;
     }
-    if (formData.password !== formData.confirmPassword) {
-      setPasswordError('Passwords do not match');
+    if (!formData.declaration) {
+      setError('Please accept the declaration to proceed');
       return;
     }
+  }
 
-    // Doctor-specific validation
-    if (formData.role === 'doctor') {
-      if (
-        !formData.medical_registration_number ||
-        !formData.state_medical_council ||
-        !formData.experience ||
-        !formData.consultation_fee
-      ) {
-        setError('Please fill all required doctor fields');
-        return;
-      }
-      if (!formData.declaration) {
-        setError('Please accept the declaration to proceed');
-        return;
-      }
-    }
+  setLoading(true);
+  setError('');
+  setPasswordError('');
 
-    setLoading(true);
-    setError('');
-    setPasswordError('');
+  // Build payload
+  const data = {
+    name: formData.name,
+    email: formData.email,
+    password: formData.password,
+  };
 
-    // Build payload
-    const data = {
-      name: formData.name,
-      email: formData.email,
-      password: formData.password,
-    };
+  if (formData.role === 'patient') {
+    if (formData.age) data.age = parseInt(formData.age);
+    if (formData.city) data.city = formData.city;
+    if (formData.phone) data.phone = formData.phone;
+  } else if (formData.role === 'doctor') {
+    data.specialization = formData.specialization;
+    data.qualification = formData.qualification;
+    data.medical_registration_number = formData.medical_registration_number;
+    data.state_medical_council = formData.state_medical_council;
+    data.experience = parseInt(formData.experience);
+    data.consultation_fee = parseFloat(formData.consultation_fee);
+    data.consultation_type = formData.consultation_type;
+    if (formData.city) data.city = formData.city;
+    if (formData.phone) data.phone = formData.phone;
+    if (formData.clinic_name) data.clinic_name = formData.clinic_name;
+  }
 
-    if (formData.role === 'patient') {
-      if (formData.age) data.age = parseInt(formData.age);
-      if (formData.city) data.city = formData.city;
-      if (formData.phone) data.phone = formData.phone;
-    } else if (formData.role === 'doctor') {
-      data.specialization = formData.specialization;
-      data.qualification = formData.qualification;
-      data.medical_registration_number = formData.medical_registration_number;
-      data.state_medical_council = formData.state_medical_council;
-      data.experience = parseInt(formData.experience);
-      data.consultation_fee = parseFloat(formData.consultation_fee);
-      data.consultation_type = formData.consultation_type;
-      if (formData.city) data.city = formData.city;
-      if (formData.phone) data.phone = formData.phone;
-      if (formData.clinic_name) data.clinic_name = formData.clinic_name;
-    }
+  console.log('🚀 Sending data:', data);
 
-    console.log('🚀 Sending data:', data); // Debug: verify all fields
+  try {
+    const result = await register(data, formData.role);
 
-    try {
-      const result = await register(data, formData.role);
-
-      if (result.success) {
-        console.log('✅ Registration result:', result);
-        setSuccess(true);
-        toast.success(
-          'A verification email has been sent to your email address. Please check your inbox.'
-        );
-        setLoading(false);
-      } else {
-        console.error('❌ Registration failed:', result);
-        setError(result.error || 'Registration failed. Please try again.');
-        setLoading(false);
-      }
-    } catch (err) {
-      console.error('❌ Registration error:', err);
-      setError(err.response?.data?.message || err.message || 'Registration failed.');
+    if (result.success) {
+      console.log('✅ Registration result:', result);
+      setSuccess(true);
+      
+      // Show success message
+      toast.success(
+        '✅ Registration successful! Please check your email for the verification link.',
+        { autoClose: 5000 }
+      );
+      
+      // Redirect to login after 3 seconds
+      setTimeout(() => {
+        navigate('/login');
+      }, 3000);
+      
+    } else {
+      console.error('❌ Registration failed:', result);
+      setError(result.error || 'Registration failed. Please try again.');
       setLoading(false);
     }
-  };
+  } catch (err) {
+    console.error('❌ Registration error:', err);
+    setError(err.response?.data?.message || err.message || 'Registration failed.');
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-primary-50/30 to-white">
