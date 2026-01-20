@@ -99,21 +99,25 @@ export const resendVerification = asyncHandler(async (req, res) => {
     </html>
   `;
 
-  // Send email
-  try {
-    await sendMail({
-      to: email, // Use the email from request body
-      subject: "Verify Your SwasthyaConnect Account",
-      html: emailHtml,
-      text: `Please verify your email by clicking this link: ${verificationUrl}`,
-    });
+  // ✅ Send response IMMEDIATELY without waiting for email
+  res.status(200).json(
+    new ApiResponse(200, {}, "If an account with that email exists, a verification email has been sent.")
+  );
 
-    res.status(200).json(
-      new ApiResponse(200, {}, "If an account with that email exists, a verification email has been sent.")
-    );
-  } catch (error) {
-    console.error("Failed to send verification email:", error);
-    throw new ApiError(500, "Failed to send verification email. Please try again later.");
-  }
+  // 🔄 Send email in background (non-blocking)
+  sendMail({
+    to: email,
+    subject: "Verify Your SwasthyaConnect Account",
+    html: emailHtml,
+    text: `Please verify your email by clicking this link: ${verificationUrl}`,
+  })
+    .then(() => {
+      console.log("✅ Verification email resent successfully to:", email);
+    })
+    .catch((error) => {
+      console.error("❌ Failed to resend verification email:", error);
+      console.error("   Email:", email);
+      // User can try again - they're not blocked
+    });
 });
 

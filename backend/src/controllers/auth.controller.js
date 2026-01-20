@@ -62,65 +62,7 @@ export const registerUser = asyncHandler(async (req, res) => {
   console.log("   To:", email);
   console.log("   Verification URL:", verificationUrl);
 
-  // Send email synchronously (don't use try-catch that swallows errors)
-  try {
-    await sendMail({
-      to: email,
-      subject: "Verify Your SwasthyaConnect Account",
-      html: `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <style>
-            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-            .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
-            .button { display: inline-block; padding: 12px 30px; background: #14b8a6; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
-            .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>Welcome to SwasthyaConnect</h1>
-            </div>
-            <div class="content">
-              <h2>Hi ${name},</h2>
-              <p>Thank you for registering with SwasthyaConnect! Please verify your email address to complete your registration.</p>
-              <p style="text-align: center;">
-                <a href="${verificationUrl}" class="button">Verify Email Address</a>
-              </p>
-              <p>Or copy and paste this link into your browser:</p>
-              <p style="word-break: break-all; color: #14b8a6; font-size: 12px;">${verificationUrl}</p>
-              <p><strong>This link will expire in 1 hour.</strong></p>
-              <p>If you didn't create an account with SwasthyaConnect, please ignore this email.</p>
-            </div>
-            <div class="footer">
-              <p>&copy; 2024 SwasthyaConnect. All rights reserved.</p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `,
-      text: `Welcome to SwasthyaConnect! Please verify your email by clicking this link: ${verificationUrl}. This link will expire in 1 hour.`,
-    });
-
-    console.log("✅ Verification email sent successfully to:", email);
-  } catch (emailError) {
-    console.error("❌ Failed to send verification email:", emailError);
-    console.error("   Email:", email);
-    console.error("   Error details:", emailError.message);
-    
-    // Delete the user if email fails
-    await user.deleteOne();
-    
-    throw new ApiError(
-      500, 
-      "Registration failed: Could not send verification email. Please try again or check your email address."
-    );
-  }
-
+  // ✅ Send response IMMEDIATELY without waiting for email
   res.status(201).json(
     new ApiResponse(
       201,
@@ -128,6 +70,59 @@ export const registerUser = asyncHandler(async (req, res) => {
       "Registration successful! Please check your email for verification link."
     )
   );
+
+  // 🔄 Send email in background (non-blocking)
+  // Don't await this - it will send asynchronously
+  sendMail({
+    to: email,
+    subject: "Verify Your SwasthyaConnect Account",
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+          .button { display: inline-block; padding: 12px 30px; background: #14b8a6; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+          .footer { text-align: center; margin-top: 20px; color: #666; font-size: 12px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>Welcome to SwasthyaConnect</h1>
+          </div>
+          <div class="content">
+            <h2>Hi ${name},</h2>
+            <p>Thank you for registering with SwasthyaConnect! Please verify your email address to complete your registration.</p>
+            <p style="text-align: center;">
+              <a href="${verificationUrl}" class="button">Verify Email Address</a>
+            </p>
+            <p>Or copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; color: #14b8a6; font-size: 12px;">${verificationUrl}</p>
+            <p><strong>This link will expire in 1 hour.</strong></p>
+            <p>If you didn't create an account with SwasthyaConnect, please ignore this email.</p>
+          </div>
+          <div class="footer">
+            <p>&copy; 2024 SwasthyaConnect. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+    text: `Welcome to SwasthyaConnect! Please verify your email by clicking this link: ${verificationUrl}. This link will expire in 1 hour.`,
+  })
+    .then(() => {
+      console.log("✅ Verification email sent successfully to:", email);
+    })
+    .catch((emailError) => {
+      console.error("❌ Failed to send verification email:", emailError);
+      console.error("   Email:", email);
+      console.error("   Error details:", emailError.message);
+      // User is already created - they can use resend verification
+    });
 });
 
 /* ======================================================
