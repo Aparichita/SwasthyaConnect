@@ -6,6 +6,7 @@ import { Calendar, Users, MessageSquare, Clock, FileText, User } from 'lucide-re
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 
+
 const DoctorDashboard = () => {
   const { user } = useAuth();
   const [profile, setProfile] = useState(null);
@@ -27,17 +28,18 @@ const DoctorDashboard = () => {
       // Fetch profile: doctorAPI.getProfile() // GET /api/doctors/me
       // Fetch appointments: appointmentAPI.getMyAppointments() // GET /api/appointments/my
       // Fetch feedback: feedbackAPI.getForDoctor(doctorId) // GET /api/feedback/:doctorId
-      const [profileRes, appointmentsRes, patientsRes, feedbackRes] = await Promise.all([
+      const [profileRes, appointmentsRes, feedbackRes] = await Promise.all([
         doctorAPI.getProfile().catch(() => ({ data: { data: null } })),
         appointmentAPI.getMyAppointments().catch(() => ({ data: { data: [] } })),
-        patientAPI.getAll().catch(() => ({ data: { data: [] } })),
         user?._id ? feedbackAPI.getForDoctor(user._id).catch(() => ({ data: { data: [] } })) : Promise.resolve({ data: { data: [] } }),
       ]);
 
       setProfile(profileRes.data?.data || null);
       const appointments = appointmentsRes.data?.data || [];
-      const patients = patientsRes.data?.data || [];
       const feedback = feedbackRes.data?.data || [];
+
+      // Get unique patients from doctor's appointments (not all patients in system)
+      const uniquePatients = [...new Set(appointments.map(apt => apt.patient?._id))].length;
 
       const pendingAppointments = appointments.filter(
         (apt) => apt.status === 'pending'
@@ -45,7 +47,7 @@ const DoctorDashboard = () => {
 
       setStats({
         appointments: appointments.length,
-        patients: patients.length,
+        patients: uniquePatients,
         feedback: feedback.length,
         pendingAppointments,
       });
@@ -96,7 +98,10 @@ const DoctorDashboard = () => {
             </Link>
           </div>
 
-          <div className="bg-white rounded-squircle shadow-soft p-6 border-0 hover:shadow-soft-lg transition-shadow">
+          <Link
+            to="/doctor/appointments"
+            className="bg-white rounded-squircle shadow-soft p-6 border-0 hover:shadow-soft-lg transition-shadow"
+          >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-500 text-sm font-medium">Total Patients</p>
@@ -106,8 +111,8 @@ const DoctorDashboard = () => {
                 <Users className="w-7 h-7 text-green-600" />
               </div>
             </div>
-            <p className="text-green-600 text-sm mt-4 font-medium">All patients</p>
-          </div>
+            <p className="text-green-600 text-sm mt-4 font-medium hover:underline">View all →</p>
+          </Link>
 
           <div className="bg-white rounded-squircle shadow-soft p-6 border-0 hover:shadow-soft-lg transition-shadow">
             <div className="flex items-center justify-between">

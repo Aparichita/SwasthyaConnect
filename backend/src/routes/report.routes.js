@@ -6,6 +6,8 @@ import {
   deleteReport,
   getMyReports,
   generatePatientReport,
+  downloadReport,
+  viewReport,
 } from "../controllers/report.controller.js";
 import { verifyToken } from "../middlewares/auth.middleware.js";
 import { authorizeRoles } from "../middlewares/role.middleware.js";
@@ -45,7 +47,7 @@ const upload = multer({ storage, fileFilter });
 router.post(
   "/",
   verifyToken,
-  authorizeRoles("patient"),
+  authorizeRoles("patient", "doctor"), // allow doctors to upload on behalf of a patient
   upload.single("file"), // handle file upload
   uploadReport
 );
@@ -63,6 +65,12 @@ router.get(
 
 // 🔍 Get single report by ID
 router.get("/:id", verifyToken, getReportById);
+
+// ⬇️ Download report file (with attachment headers)
+router.get("/:id/download", verifyToken, downloadReport);
+
+// 👁️ View report file in browser (with inline headers)
+router.get("/:id/view", verifyToken, viewReport);
 
 // ❌ Delete report (patient only)
 router.delete("/:id", verifyToken, authorizeRoles("patient"), deleteReport);

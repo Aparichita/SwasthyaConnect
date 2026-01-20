@@ -98,9 +98,14 @@ export const doctorAPI = {
 export const appointmentAPI = {
   book: (data) => api.post('/appointments', data),
   getMyAppointments: () => api.get('/appointments/my'),
+
+  // ✅ REQUIRED FOR DOCTOR CHAT
+  getDoctorAppointments: () => api.get('/appointments/doctor'),
+
   updateStatus: (id, data) => api.put(`/appointments/${id}`, data),
   delete: (id) => api.delete(`/appointments/${id}`),
 };
+
 
 // Report
 export const reportAPI = {
@@ -109,6 +114,8 @@ export const reportAPI = {
   getMyReports: () => api.get('/reports/my'),
   getByPatient: (patientId) => api.get(`/reports/patient/${patientId}`),
   getById: (id) => api.get(`/reports/${id}`),
+  downloadReport: (id) => api.get(`/reports/${id}/download`, { responseType: 'blob' }),
+  viewReport: (id) => api.get(`/reports/${id}/view`, { responseType: 'blob' }),
   delete: (id) => api.delete(`/reports/${id}`),
   generatePDF: () => api.post('/reports/generate', {}, { responseType: 'blob' }),
 };
@@ -158,6 +165,9 @@ export const gamificationAPI = {
   getRewards: () => api.get('/gamification/rewards'),
 };
 
+
+
+
 // Verification
 export const verificationAPI = {
   sendVerificationEmail: (data) => api.post('/verification/send', data),
@@ -175,13 +185,23 @@ export const passwordAPI = {
 
 // Messages
 export const messageAPI = {
-  getConversation: (appointmentId) => api.get(`/messages/conversation/${appointmentId}`),
-  getMyConversations: () => api.get('/messages/conversations'),
-  getMessages: (conversationId) => api.get(`/messages/${conversationId}`),
-  sendMessage: (data) => api.post('/messages/send', data),
-  uploadAttachment: (formData) => api.post('/messages/upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  }),
+  // Get or create conversation (appointment based)
+  getConversation: (appointmentId) =>
+    api.get(`/messages/conversation/${appointmentId}`),
+
+  // ✅ FIX: Get all conversations for sidebar
+  getMyConversations: () =>
+    api.get("/messages/conversations"),
+
+  // Get messages in a conversation
+  getMessages: (conversationId) =>
+    api.get(`/messages/${conversationId}`),
+
+  // Send message
+  sendMessage: (data) =>
+    api.post("/messages/send", data),
 };
+
+
 
 export default api;

@@ -307,8 +307,8 @@ function AppRoutes() {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
+    <Router>
+      <AuthProvider>
         <AppRoutes />
         <ToastContainer
           position="top-right"
@@ -321,8 +321,8 @@ function App() {
           draggable
           pauseOnHover
         />
-      </Router>
-    </AuthProvider>
+      </AuthProvider>
+    </Router>
   );
 }
 

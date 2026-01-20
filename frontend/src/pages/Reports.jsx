@@ -52,6 +52,10 @@ const Reports = () => {
         // Doctor: Get all patients to view their reports
         const patientsRes = await patientAPI.getAll();
         setPatients(patientsRes.data?.data || []);
+        // Default to first patient if available and none selected
+        if (!selectedPatient && patientsRes.data?.data?.length) {
+          setSelectedPatient(patientsRes.data.data[0]._id);
+        }
         // If a patient is selected, fetch their reports
         if (selectedPatient) {
           const reportsRes = await reportAPI.getByPatient(selectedPatient);
@@ -79,6 +83,52 @@ const Reports = () => {
       setReports(res.data?.data || []);
     } catch (error) {
       toast.error('Failed to load patient reports');
+    }
+  };
+
+  // Download report file
+  const handleDownloadReport = async (reportId) => {
+    try {
+      toast.info('Downloading report...');
+      const response = await reportAPI.downloadReport(reportId);
+      
+      // Create blob from response
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `report-${reportId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Report downloaded successfully!');
+    } catch (error) {
+      console.error('Download error:', error);
+      toast.error(error.response?.data?.message || 'Failed to download report');
+    }
+  };
+
+  // View report in new tab
+  const handleViewReport = async (reportId) => {
+    try {
+      toast.info('Opening report...');
+      const response = await reportAPI.viewReport(reportId);
+      
+      // Create blob from response
+      const blob = new Blob([response.data], { type: 'application/pdf' });
+      
+      // Create object URL and open in new tab
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      
+      toast.success('Report opened in new tab!');
+    } catch (error) {
+      console.error('View error:', error);
+      toast.error(error.response?.data?.message || 'Failed to view report');
     }
   };
 
@@ -221,15 +271,6 @@ const Reports = () => {
             </p>
           </div>
           <div className="flex space-x-4">
-            {isPatient && (
-              <button
-                onClick={handleGeneratePDF}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center space-x-2"
-              >
-                <Download className="w-5 h-5" />
-                <span>Generate PDF</span>
-              </button>
-            )}
             <button
               onClick={() => setShowModal(true)}
               className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 flex items-center space-x-2"
@@ -289,16 +330,22 @@ const Reports = () => {
                     {report.description && (
                       <p className="text-gray-600 mb-4">{report.description}</p>
                     )}
-                    {report.file && (
-                      <a
-                        href={report.file}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-primary-600 hover:underline flex items-center space-x-2"
-                      >
-                        <Download className="w-4 h-4" />
-                        <span>Download Report</span>
-                      </a>
+                    {(report.fileUrl || report.file) && (
+                      <div className="flex items-center space-x-3">
+                        <button
+                          onClick={() => handleDownloadReport(report._id)}
+                          className="text-primary-600 hover:text-primary-700 flex items-center space-x-1 transition font-medium"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>Download</span>
+                        </button>
+                        <button
+                          onClick={() => handleViewReport(report._id)}
+                          className="text-blue-600 hover:text-blue-700 text-sm transition font-medium"
+                        >
+                          View
+                        </button>
+                      </div>
                     )}
                   </div>
                   {isPatient && (

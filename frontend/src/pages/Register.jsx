@@ -60,12 +60,16 @@ const Register = () => {
 const handleSubmit = async (e) => {
   e.preventDefault();
 
+  // 🛑 HARD GUARD — prevents StrictMode double execution
+  if (loading) return;
+
   // Password validation
   const pwdError = validatePassword(formData.password);
   if (pwdError) {
     setPasswordError(pwdError);
     return;
   }
+
   if (formData.password !== formData.confirmPassword) {
     setPasswordError('Passwords do not match');
     return;
@@ -77,7 +81,9 @@ const handleSubmit = async (e) => {
       !formData.medical_registration_number ||
       !formData.state_medical_council ||
       !formData.experience ||
-      !formData.consultation_fee
+      !formData.consultation_fee ||
+      !formData.clinic_name ||
+      !formData.city
     ) {
       setError('Please fill all required doctor fields');
       return;
@@ -92,7 +98,6 @@ const handleSubmit = async (e) => {
   setError('');
   setPasswordError('');
 
-  // Build payload
   const data = {
     name: formData.name,
     email: formData.email,
@@ -103,7 +108,7 @@ const handleSubmit = async (e) => {
     if (formData.age) data.age = parseInt(formData.age);
     if (formData.city) data.city = formData.city;
     if (formData.phone) data.phone = formData.phone;
-  } else if (formData.role === 'doctor') {
+  } else {
     data.specialization = formData.specialization;
     data.qualification = formData.qualification;
     data.medical_registration_number = formData.medical_registration_number;
@@ -116,37 +121,28 @@ const handleSubmit = async (e) => {
     if (formData.clinic_name) data.clinic_name = formData.clinic_name;
   }
 
-  console.log('🚀 Sending data:', data);
-
   try {
     const result = await register(data, formData.role);
 
     if (result.success) {
-      console.log('✅ Registration result:', result);
       setSuccess(true);
-      
-      // Show success message
+
       toast.success(
-        '✅ Registration successful! Please check your email for the verification link.',
+        '✅ Registration successful! Please check your email for verification.',
         { autoClose: 5000 }
       );
-      
-      // Redirect to login after 3 seconds
-      setTimeout(() => {
-        navigate('/login');
-      }, 3000);
-      
+
+      setTimeout(() => navigate('/login'), 3000);
     } else {
-      console.error('❌ Registration failed:', result);
       setError(result.error || 'Registration failed. Please try again.');
-      setLoading(false);
     }
   } catch (err) {
-    console.error('❌ Registration error:', err);
-    setError(err.response?.data?.message || err.message || 'Registration failed.');
+    setError(err.response?.data?.message || 'Registration failed.');
+  } finally {
     setLoading(false);
   }
 };
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-primary-50/30 to-white">
@@ -179,7 +175,7 @@ const handleSubmit = async (e) => {
 
             {/* Name & Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Name <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 name="name"
@@ -190,7 +186,7 @@ const handleSubmit = async (e) => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Email <span className="text-red-500">*</span></label>
               <input
                 type="email"
                 name="email"
@@ -203,7 +199,7 @@ const handleSubmit = async (e) => {
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Password <span className="text-red-500">*</span></label>
               <input
                 type="password"
                 name="password"
@@ -224,7 +220,7 @@ const handleSubmit = async (e) => {
               </p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Confirm Password <span className="text-red-500">*</span></label>
               <input
                 type="password"
                 name="confirmPassword"
@@ -239,7 +235,7 @@ const handleSubmit = async (e) => {
             {formData.role === 'patient' && (
               <>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Age</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Age <span className="text-red-500">*</span></label>
                   <input
                     type="number"
                     name="age"
@@ -259,7 +255,7 @@ const handleSubmit = async (e) => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone <span className="text-red-500">*</span></label>
                   <input
                     type="tel"
                     name="phone"
@@ -368,7 +364,7 @@ const handleSubmit = async (e) => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Clinic / Hospital Name</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Clinic / Hospital Name <span className="text-red-500">*</span></label>
                   <input
                     type="text"
                     name="clinic_name"
@@ -376,6 +372,7 @@ const handleSubmit = async (e) => {
                     onChange={handleChange}
                     placeholder="Enter clinic or hospital name"
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    required
                   />
                 </div>
 
@@ -395,13 +392,14 @@ const handleSubmit = async (e) => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">City</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">City <span className="text-red-500">*</span></label>
                   <input
                     type="text"
                     name="city"
                     value={formData.city}
                     onChange={handleChange}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    required
                   />
                 </div>
 
@@ -419,7 +417,7 @@ const handleSubmit = async (e) => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone <span className="text-red-500">*</span></label>
                   <input
                     type="tel"
                     name="phone"

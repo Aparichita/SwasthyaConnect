@@ -15,13 +15,30 @@ import fs from "fs";
  * @access Patient
  */
 export const uploadReport = asyncHandler(async (req, res) => {
-  const patientId = req.user.id;
+  const isDoctor = req.user.role === "doctor";
+  const bodyPatientId = req.body.patient || req.body.patientId;
+  const patientId = isDoctor ? bodyPatientId : req.user.id;
 
   if (!req.file) {
     throw new ApiError(400, "Please upload a report file");
   }
 
-  const { reportName, reportType, description, doctor } = req.body;
+  if (!patientId) {
+    throw new ApiError(400, "Patient ID is required");
+  }
+
+  // Patients can only upload their own reports
+  if (!isDoctor && patientId !== req.user.id) {
+    throw new ApiError(403, "Not authorized to upload for another patient");
+  }
+
+  // Ensure patient exists
+  const patientExists = await Patient.findById(patientId);
+  if (!patientExists) {
+    throw new ApiError(404, "Patient not found");
+  }
+
+  const { reportName, reportType, description } = req.body;
 
   if (!reportName) {
     throw new ApiError(400, "Report name is required");
@@ -29,7 +46,7 @@ export const uploadReport = asyncHandler(async (req, res) => {
 
   const report = await Report.create({
     patient: patientId,
-    doctor: doctor || null,
+    doctor: isDoctor ? req.user.id : null,
     reportType,
     description,
     reportName,
@@ -78,6 +95,12 @@ export const getMyReports = asyncHandler(async (req, res) => {
  */
 export const getReportsByPatient = asyncHandler(async (req, res) => {
   const { patientId } = req.params;
+
+  // Patients can only fetch their own reports
+  if (req.user.role === "patient" && req.user.id !== patientId) {
+    throw new ApiError(403, "Not authorized to view other patients' reports");
+  }
+
   const reports = await Report.find({ patient: patientId }).populate(
     "doctor",
     "name specialization"
@@ -107,6 +130,92 @@ export const getReportById = asyncHandler(async (req, res) => {
   return res
     .status(200)
     .json(new ApiResponse(200, report, "Report fetched successfully"));
+});
+
+/**
+ * @desc Download a report file (PDF/Image)
+ * @route GET /api/reports/:id/download
+ * @access Patient / Doctor
+ * @returns PDF file with proper headers for download
+ */
+export const downloadReport = asyncHandler(async (req, res) => {
+  const report = await Report.findById(req.params.id);
+
+  if (!report) throw new ApiError(404, "Report not found");
+
+  // Authorization: Patient can download their own reports, Doctor can download their patients' reports
+  if (req.user.role === "patient" && report.patient.toString() !== req.user.id) {
+    throw new ApiError(403, "Not authorized to download this report");
+  }
+
+  if (req.user.role === "doctor" && report.doctor && report.doctor.toString() !== req.user.id) {
+    throw new ApiError(403, "Not authorized to download this report");
+  }
+
+  // Check if file exists
+  if (!fs.existsSync(report.fileUrl)) {
+    throw new ApiError(404, "Report file not found on server");
+  }
+
+  // Set headers for file download
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${report.reportName || 'report'}.pdf"`);
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+
+  // Send file
+  const fileStream = fs.createReadStream(report.fileUrl);
+  fileStream.pipe(res);
+  fileStream.on('error', (err) => {
+    console.error('File stream error:', err);
+    if (!res.headersSent) {
+      res.status(500).json(new ApiError(500, "Error downloading file"));
+    }
+  });
+});
+
+/**
+ * @desc View a report file (PDF/Image) in browser
+ * @route GET /api/reports/:id/view
+ * @access Patient / Doctor
+ * @returns PDF file with inline headers for viewing
+ */
+export const viewReport = asyncHandler(async (req, res) => {
+  const report = await Report.findById(req.params.id);
+
+  if (!report) throw new ApiError(404, "Report not found");
+
+  // Authorization: Patient can view their own reports, Doctor can view their patients' reports
+  if (req.user.role === "patient" && report.patient.toString() !== req.user.id) {
+    throw new ApiError(403, "Not authorized to view this report");
+  }
+
+  if (req.user.role === "doctor" && report.doctor && report.doctor.toString() !== req.user.id) {
+    throw new ApiError(403, "Not authorized to view this report");
+  }
+
+  // Check if file exists
+  if (!fs.existsSync(report.fileUrl)) {
+    throw new ApiError(404, "Report file not found on server");
+  }
+
+  // Set headers for inline viewing (not download)
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `inline; filename="${report.reportName || 'report'}.pdf"`);
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+
+  // Send file
+  const fileStream = fs.createReadStream(report.fileUrl);
+  fileStream.pipe(res);
+  fileStream.on('error', (err) => {
+    console.error('File stream error:', err);
+    if (!res.headersSent) {
+      res.status(500).json(new ApiError(500, "Error viewing file"));
+    }
+  });
 });
 
 /**

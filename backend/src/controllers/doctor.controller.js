@@ -41,11 +41,13 @@ export const registerDoctor = asyncHandler(async (req, res) => {
     !medical_registration_number ||
     !state_medical_council ||
     !experience ||
-    !consultation_fee
+    !consultation_fee ||
+    !clinic_name ||
+    !city
   ) {
     throw new ApiError(
       400,
-      "All doctor fields are required: specialization, qualification, phone, medical_registration_number, state_medical_council, experience, consultation_fee"
+      "All doctor fields are required: specialization, qualification, phone, medical_registration_number, state_medical_council, experience, consultation_fee, clinic_name, city"
     );
   }
 

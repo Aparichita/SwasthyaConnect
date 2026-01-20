@@ -11,16 +11,43 @@ import { authorizeRoles } from "../middlewares/role.middleware.js";
 
 const router = express.Router();
 
-// 📅 Book new appointment (Patient)
-router.post("/", verifyToken, authorizeRoles("patient"), bookAppointment);
+// 📅 Patient books appointment
+router.post(
+  "/",
+  verifyToken,
+  authorizeRoles("patient"),
+  bookAppointment
+);
 
-// 👀 View all appointments for logged-in user
-router.get("/my", verifyToken, getMyAppointments);
+// 👀 Logged-in user (patient OR doctor)
+router.get(
+  "/my",
+  verifyToken,
+  getMyAppointments
+);
 
-// ✏️ Update appointment status (Doctor only)
-router.put("/:id", verifyToken, authorizeRoles("doctor"), updateAppointmentStatus);
+// 👨‍⚕️ Doctor appointments (USED BY CHAT SYSTEM)
+router.get(
+  "/doctor",
+  verifyToken,
+  authorizeRoles("doctor"),
+  getMyAppointments
+);
 
-// ❌ Cancel appointment (Patient only)
-router.delete("/:id", verifyToken, authorizeRoles("patient"), deleteAppointment);
+// ✏️ Doctor updates appointment status
+router.put(
+  "/:id",
+  verifyToken,
+  authorizeRoles("doctor"),
+  updateAppointmentStatus
+);
+
+// ❌ Patient cancels appointment
+router.delete(
+  "/:id",
+  verifyToken,
+  authorizeRoles("patient"),
+  deleteAppointment
+);
 
 export default router;

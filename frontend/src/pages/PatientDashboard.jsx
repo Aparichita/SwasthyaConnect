@@ -19,6 +19,7 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import DoctorSuggestions from '../components/DoctorSuggestions';
 
+
 const PatientDashboard = () => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
@@ -136,7 +137,7 @@ const PatientDashboard = () => {
             </Link>
           </div>
 
-          <div className="bg-white rounded-squircle shadow-soft p-6 border-0 hover:shadow-soft-lg transition-shadow">
+          {/* <div className="bg-white rounded-squircle shadow-soft p-6 border-0 hover:shadow-soft-lg transition-shadow">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-500 text-sm font-medium">Notifications</p>
@@ -152,7 +153,7 @@ const PatientDashboard = () => {
             >
               View all →
             </Link>
-          </div>
+          </div> */}
 
           <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-squircle shadow-soft p-6 border-0 hover:shadow-soft-lg transition-shadow lg:col-span-2 lg:row-span-1">
             <div className="flex items-center justify-between">
@@ -217,14 +218,14 @@ const PatientDashboard = () => {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <button
-            onClick={() => setShowDoctorSearch(!showDoctorSearch)}
+          <Link
+            to="/patient/appointments"
             className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow text-left"
           >
             <Search className="w-8 h-8 text-green-600 mb-4" />
             <h3 className="font-semibold text-gray-900 mb-2">Find Doctors</h3>
             <p className="text-gray-600 text-sm">Search by specialization</p>
-          </button>
+          </Link>
           <Link
             to="/patient/appointments"
             className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"

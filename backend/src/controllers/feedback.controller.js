@@ -11,11 +11,14 @@ import { ApiError } from "../utils/api-error.js";
  * @access Patient
  */
 export const addFeedback = asyncHandler(async (req, res) => {
-  const patientId = req.user.id;
+  const patientId = req.user?.id;
   const { doctorId, rating, comment, message } = req.body;
 
-  // Determine comment content (optional)
-  const feedbackComment = message || comment || "";
+  if (!patientId) {
+    throw new ApiError(401, "Unauthorized");
+  }
+
+  const feedbackComment = (message || comment || "").trim();
 
   // Default rating if not provided
   const feedbackRating = rating ? Number(rating) : 5;

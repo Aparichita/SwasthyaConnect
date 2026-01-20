@@ -41,8 +41,21 @@ const Feedback = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const trimmedMessage = formData.message.trim();
+
+    if (isPatient && !formData.doctorId) {
+      toast.error('Please select a doctor');
+      return;
+    }
+
+    const payload = {
+      doctorId: formData.doctorId || undefined,
+      message: trimmedMessage,
+      rating: formData.rating,
+    };
+
     try {
-      const response = await feedbackAPI.add(formData);
+      const response = await feedbackAPI.add(payload);
       
       // Check if feedback was submitted successfully
       if (response.data.success || response.data.data) {

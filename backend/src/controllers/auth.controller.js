@@ -215,98 +215,45 @@ export const loginUser = asyncHandler(async (req, res) => {
 });
 
 /* ======================================================
-   VERIFY EMAIL
-====================================================== */
-// backend/src/controllers/auth.controller.js
-// Replace ONLY the verifyEmail function with this:
-
-/* ======================================================
-   VERIFY EMAIL
+   VERIFY EMAIL  ✅ FINAL FIX
 ====================================================== */
 export const verifyEmail = asyncHandler(async (req, res) => {
   const { token } = req.params;
 
-  console.log('🔍 Verifying email with token:', token);
+  console.log("🔍 Verifying token:", token);
 
-  const user =
-    (await Patient.findOne({
-      emailVerificationToken: token,
-      emailVerificationExpires: { $gt: Date.now() },
-    })) ||
-    (await Doctor.findOne({
-      emailVerificationToken: token,
-      emailVerificationExpires: { $gt: Date.now() },
-    }));
+  // IMPORTANT: explicitly select hidden fields
+  let user =
+    await Patient.findOne({ emailVerificationToken: token })
+      .select("+emailVerificationToken +emailVerificationExpires");
 
   if (!user) {
-    console.error('❌ Invalid or expired token');
-    throw new ApiError(400, "Invalid or expired verification token");
+    user = await Doctor.findOne({ emailVerificationToken: token })
+      .select("+emailVerificationToken +emailVerificationExpires");
   }
 
-  console.log('✅ User found:', user.email);
+  if (!user) {
+    console.error("❌ Token not found in DB");
+    throw new ApiError(400, "Invalid verification token");
+  }
+
+  if (user.emailVerificationExpires < Date.now()) {
+    console.error("❌ Token expired");
+    throw new ApiError(400, "Verification token expired");
+  }
 
   user.isVerified = true;
-  user.isEmailVerified = true; // Set both for compatibility
+  user.isEmailVerified = true;
   user.emailVerificationToken = undefined;
   user.emailVerificationExpires = undefined;
+
   await user.save();
 
-  console.log('✅ Email verified successfully for:', user.email);
+  console.log("✅ Email verified:", user.email);
 
-  // ✅ FIX: Instead of res.redirect, send HTML that redirects client-side
-  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
-  const successUrl = `${frontendUrl}/email-verified-success`;
-  
-  res.status(200).send(`
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta http-equiv="refresh" content="0;url=${successUrl}">
-      <title>Email Verified</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          min-height: 100vh;
-          margin: 0;
-          background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
-          color: white;
-        }
-        .container {
-          text-align: center;
-          padding: 2rem;
-        }
-        .checkmark {
-          font-size: 4rem;
-          margin-bottom: 1rem;
-        }
-        h1 {
-          margin: 0 0 1rem 0;
-        }
-        p {
-          margin: 0.5rem 0;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="checkmark">✅</div>
-        <h1>Email Verified!</h1>
-        <p>Your email has been verified successfully.</p>
-        <p>Redirecting you to login...</p>
-      </div>
-      <script>
-        // Redirect after a short delay
-        setTimeout(() => {
-          window.location.href = '${successUrl}';
-        }, 1000);
-      </script>
-    </body>
-    </html>
-  `);
+  return res.status(200).json(
+    new ApiResponse(200, { verified: true }, "Email verified successfully")
+  );
 });
 
 /* ======================================================
