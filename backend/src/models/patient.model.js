@@ -53,12 +53,11 @@ const patientSchema = new mongoose.Schema(
       select: false,
     },
     password: {
-      type: String,
-      required: [true, "Password is required"],
-      minlength: [8, "Password must be at least 8 characters"],
-      maxlength: [32, "Password must be at most 32 characters"],
-      select: false,
-    },
+  type: String,
+  required: [true, "Password is required"],
+  select: false,
+},
+
     age: {
       type: Number,
       required: false,

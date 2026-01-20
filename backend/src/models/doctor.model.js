@@ -48,13 +48,12 @@ const doctorSchema = new mongoose.Schema(
       type: String,
       required: [true, "Phone number is required"],
     },
-    password: {
-      type: String,
-      required: [true, "Password is required"],
-      minlength: [8, "Password must be at least 8 characters"],
-      maxlength: [32, "Password must be at most 32 characters"],
-      select: false,
-    },
+   password: {
+  type: String,
+  required: [true, "Password is required"],
+  select: false,
+},
+
     specialization: {
       type: String,
       required: [true, "Specialization is required"],
