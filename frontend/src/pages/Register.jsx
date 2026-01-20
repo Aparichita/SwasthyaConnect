@@ -128,11 +128,11 @@ const handleSubmit = async (e) => {
       setSuccess(true);
 
       toast.success(
-        '✅ Registration successful! Please check your email for verification.',
-        { autoClose: 5000 }
+        '✅ Registration successful! Redirecting to login...',
+        { autoClose: 3000 }
       );
 
-      setTimeout(() => navigate('/login'), 3000);
+      setTimeout(() => navigate('/login'), 2000);
     } else {
       setError(result.error || 'Registration failed. Please try again.');
     }

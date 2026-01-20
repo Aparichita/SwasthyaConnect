@@ -54,6 +54,14 @@ export const registerUser = asyncHandler(async (req, res) => {
   }
   console.log("✅ User created successfully");
 
+  // ✅ AUTO-VERIFY in production (smooth demo experience for recruiters)
+  if (process.env.NODE_ENV === "production") {
+    user.isVerified = true;
+    user.isEmailVerified = true;
+    await user.save();
+    console.log("✅ Auto-verified user in production mode");
+  }
+
   // ✅ CRITICAL: Send email IMMEDIATELY after user creation
   const frontendUrl = process.env.FRONTEND_URL || "http://localhost:5173";
   const verificationUrl = `${frontendUrl}/verify-email/${verificationToken}`;
@@ -67,7 +75,9 @@ export const registerUser = asyncHandler(async (req, res) => {
     new ApiResponse(
       201,
       null,
-      "Registration successful! Please check your email for verification link."
+      process.env.NODE_ENV === "production" 
+        ? "Registration successful! You can now login."
+        : "Registration successful! Please check your email for verification link."
     )
   );
 
