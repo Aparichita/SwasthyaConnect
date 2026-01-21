@@ -5,43 +5,50 @@ import { asyncHandler } from "../utils/async-handler.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { ApiError } from "../utils/api-error.js";
 import { generatePDF } from "../utils/generate-pdf.js";
-import { sendMail } from "../utils/sendEmail.js"; // <-- Added email utility
-import path from "path";
-import fs from "fs";
+import { sendMail } from "../utils/sendEmail.js";
+import cloudinary from "../config/cloudinary.js";
+import axios from "axios";
 
 /**
- * @desc Upload a medical report (PDF or image) and send email notification
+ * @desc Upload a medical report (PDF or image) to Cloudinary and send email
  * @route POST /api/reports
- * @access Patient
+ * @access Patient / Doctor
  */
+
+const getContentType = (url) => {
+  if (url.endsWith(".png")) return "image/png";
+  if (url.endsWith(".jpg") || url.endsWith(".jpeg")) return "image/jpeg";
+  return "application/pdf";
+};
+
+// Upload a medical report
 export const uploadReport = asyncHandler(async (req, res) => {
   const isDoctor = req.user.role === "doctor";
-  const bodyPatientId = req.body.patient || req.body.patientId;
-  const patientId = isDoctor ? bodyPatientId : req.user.id;
+  const patientId = isDoctor ? req.body.patient || req.body.patientId : req.user.id;
 
-  if (!req.file) {
-    throw new ApiError(400, "Please upload a report file");
-  }
+  if (!req.file) throw new ApiError(400, "Please upload a report file");
+  if (!patientId) throw new ApiError(400, "Patient ID is required");
 
-  if (!patientId) {
-    throw new ApiError(400, "Patient ID is required");
-  }
-
-  // Patients can only upload their own reports
-  if (!isDoctor && patientId !== req.user.id) {
-    throw new ApiError(403, "Not authorized to upload for another patient");
-  }
-
-  // Ensure patient exists
   const patientExists = await Patient.findById(patientId);
-  if (!patientExists) {
-    throw new ApiError(404, "Patient not found");
-  }
+  if (!patientExists) throw new ApiError(404, "Patient not found");
 
   const { reportName, reportType, description } = req.body;
+  if (!reportName) throw new ApiError(400, "Report name is required");
 
-  if (!reportName) {
-    throw new ApiError(400, "Report name is required");
+  let fileUrl;
+
+  try {
+    // Upload to Cloudinary
+    console.log("📤 Uploading to Cloudinary:", req.file.originalname);
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: "swasthya-connect/reports",
+      resource_type: "auto",
+    });
+    fileUrl = result.secure_url; // always store Cloudinary URL
+    console.log("✅ Cloudinary upload successful:", fileUrl);
+  } catch (err) {
+    console.error("❌ Cloudinary upload failed:", err.message);
+    throw new ApiError(500, "Failed to upload report. Try again.");
   }
 
   const report = await Report.create({
@@ -50,30 +57,23 @@ export const uploadReport = asyncHandler(async (req, res) => {
     reportType,
     description,
     reportName,
-    fileUrl: req.file.path,
+    fileUrl,
   });
 
-  // ✅ Send response IMMEDIATELY
-  res
-    .status(201)
-    .json(new ApiResponse(201, report, "Report uploaded successfully"));
+  console.log("✅ Report saved to DB with Cloudinary URL");
 
-  // 🔄 Send email in background (non-blocking)
-  if (patient?.email) {
+  res.status(201).json(new ApiResponse(201, report, "Report uploaded successfully"));
+
+  // Send email (non-blocking)
+  if (patientExists.email) {
     sendMail(
-      patient.email,
+      patientExists.email,
       "Report Uploaded Successfully",
-      `Hello ${patient.name},\n\nYour report "${report.reportName}" has been uploaded successfully.\n\nRegards,\nSwasthya Connect`
-    )
-      .then(() => {
-        console.log("📧 Report upload email sent to:", patient.email);
-      })
-      .catch((emailError) => {
-        console.error("⚠️ Failed to send report email:", emailError.message);
-        // Don't block the report upload if email fails
-      });
+      `Hello ${patientExists.name},\n\nYour report "${report.reportName}" is ready: ${fileUrl}\n\nRegards,\nSwasthya Connect`
+    ).catch(err => console.error("⚠️ Failed to send report email:", err.message));
   }
 });
+
 
 /**
  * @desc Get all reports of a logged-in patient
@@ -85,20 +85,17 @@ export const getMyReports = asyncHandler(async (req, res) => {
     "doctor",
     "name specialization"
   );
-  return res
-    .status(200)
-    .json(new ApiResponse(200, reports, "Fetched patient reports"));
+  return res.status(200).json(new ApiResponse(200, reports, "Fetched patient reports"));
 });
 
 /**
- * @desc Get all reports uploaded for a specific patient (for doctors)
+ * @desc Get all reports for a specific patient (for doctors)
  * @route GET /api/reports/patient/:patientId
  * @access Patient / Doctor
  */
 export const getReportsByPatient = asyncHandler(async (req, res) => {
   const { patientId } = req.params;
 
-  // Patients can only fetch their own reports
   if (req.user.role === "patient" && req.user.id !== patientId) {
     throw new ApiError(403, "Not authorized to view other patients' reports");
   }
@@ -107,9 +104,7 @@ export const getReportsByPatient = asyncHandler(async (req, res) => {
     "doctor",
     "name specialization"
   );
-  return res
-    .status(200)
-    .json(new ApiResponse(200, reports, "Fetched reports for patient"));
+  return res.status(200).json(new ApiResponse(200, reports, "Fetched reports for patient"));
 });
 
 /**
@@ -129,121 +124,146 @@ export const getReportById = asyncHandler(async (req, res) => {
     throw new ApiError(403, "Not authorized to view this report");
   }
 
-  return res
-    .status(200)
-    .json(new ApiResponse(200, report, "Report fetched successfully"));
+  return res.status(200).json(new ApiResponse(200, report, "Report fetched successfully"));
 });
 
 /**
- * @desc Download a report file (PDF/Image)
+ * @desc Download a report file
  * @route GET /api/reports/:id/download
  * @access Patient / Doctor
- * @returns PDF file with proper headers for download
  */
+
 export const downloadReport = asyncHandler(async (req, res) => {
   const report = await Report.findById(req.params.id);
-
   if (!report) throw new ApiError(404, "Report not found");
 
-  // Authorization: Patient can download their own reports, Doctor can download their patients' reports
-  if (req.user.role === "patient" && report.patient.toString() !== req.user.id) {
+  if (req.user.role === "patient" && report.patient.toString() !== req.user.id)
     throw new ApiError(403, "Not authorized to download this report");
-  }
 
-  if (req.user.role === "doctor" && report.doctor && report.doctor.toString() !== req.user.id) {
+  if (req.user.role === "doctor" && report.doctor && report.doctor.toString() !== req.user.id)
     throw new ApiError(403, "Not authorized to download this report");
+
+  if (!report.fileUrl || !report.fileUrl.startsWith("http")) {
+    console.error("❌ Invalid fileUrl:", report.fileUrl);
+    throw new ApiError(400, "Report file URL is invalid. Please upload a new report.");
   }
 
-  // Check if file exists (graceful handling for Render ephemeral storage)
-  if (!fs.existsSync(report.fileUrl)) {
-    console.warn("⚠️ Report file not found (Render ephemeral storage)");
-    return res.status(200).json(new ApiResponse(200, { reportName: report.reportName }, "Report metadata found but file unavailable on server (it may have been cleared during deployment)."));
-  }
+  try {
+    console.log("⬇️ Downloading from:", report.fileUrl);
+    const response = await axios.get(report.fileUrl, {
+      responseType: "arraybuffer",
+      timeout: 30000,
+    });
 
-  // Set headers for file download
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="${report.reportName || 'report'}.pdf"`);
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
-
-  // Send file
-  const fileStream = fs.createReadStream(report.fileUrl);
-  fileStream.pipe(res);
-  fileStream.on('error', (err) => {
-    console.error('File stream error:', err);
-    if (!res.headersSent) {
-      res.status(500).json(new ApiError(500, "Error downloading file"));
+    if (!response.data || response.data.byteLength === 0) {
+      throw new ApiError(400, "Empty file received from Cloudinary");
     }
-  });
+
+    console.log("✅ Downloaded", response.data.byteLength, "bytes");
+
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `attachment; filename="${report.reportName || "report"}.pdf"`,
+      "Content-Length": response.data.byteLength,
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      "Pragma": "no-cache",
+      "Expires": "0",
+    });
+
+    return res.send(Buffer.from(response.data));
+  } catch (err) {
+    console.error("❌ Download error:", err.message);
+    if (err instanceof ApiError) throw err;
+    if (err.code === "ECONNABORTED") {
+      throw new ApiError(504, "Download request timed out. Please try again.");
+    }
+    throw new ApiError(500, "Failed to download report. Please try again later.");
+  }
 });
 
+
+
 /**
- * @desc View a report file (PDF/Image) in browser
+ * @desc View a report file in browser
  * @route GET /api/reports/:id/view
  * @access Patient / Doctor
- * @returns PDF file with inline headers for viewing
  */
 export const viewReport = asyncHandler(async (req, res) => {
   const report = await Report.findById(req.params.id);
-
   if (!report) throw new ApiError(404, "Report not found");
 
-  // Authorization: Patient can view their own reports, Doctor can view their patients' reports
-  if (req.user.role === "patient" && report.patient.toString() !== req.user.id) {
+  if (req.user.role === "patient" && report.patient.toString() !== req.user.id)
     throw new ApiError(403, "Not authorized to view this report");
-  }
 
-  if (req.user.role === "doctor" && report.doctor && report.doctor.toString() !== req.user.id) {
+  if (req.user.role === "doctor" && report.doctor && report.doctor.toString() !== req.user.id)
     throw new ApiError(403, "Not authorized to view this report");
+
+  if (!report.fileUrl || !report.fileUrl.startsWith("http")) {
+    console.error("❌ Invalid fileUrl:", report.fileUrl);
+    throw new ApiError(400, "Report file URL is invalid. Please upload a new report.");
   }
 
-  // Check if file exists (graceful handling for Render ephemeral storage)
-  if (!fs.existsSync(report.fileUrl)) {
-    console.warn("⚠️ Report file not found (Render ephemeral storage)");
-    return res.status(200).json(new ApiResponse(200, { reportName: report.reportName }, "Report metadata found but file unavailable on server (it may have been cleared during deployment)."));
-  }
+  try {
+    console.log("👁️ Viewing from:", report.fileUrl);
+    const response = await axios.get(report.fileUrl, {
+      responseType: "arraybuffer",
+      timeout: 30000,
+    });
 
-  // Set headers for inline viewing (not download)
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `inline; filename="${report.reportName || 'report'}.pdf"`);
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
-
-  // Send file
-  const fileStream = fs.createReadStream(report.fileUrl);
-  fileStream.pipe(res);
-  fileStream.on('error', (err) => {
-    console.error('File stream error:', err);
-    if (!res.headersSent) {
-      res.status(500).json(new ApiError(500, "Error viewing file"));
+    if (!response.data || response.data.byteLength === 0) {
+      throw new ApiError(400, "Empty file received from Cloudinary");
     }
-  });
+
+    console.log("✅ Retrieved", response.data.byteLength, "bytes");
+
+    res.set({
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `inline; filename="${report.reportName || "report"}.pdf"`,
+      "Content-Length": response.data.byteLength,
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      "Pragma": "no-cache",
+      "Expires": "0",
+    });
+
+    return res.send(Buffer.from(response.data));
+  } catch (err) {
+    console.error("❌ View error:", err.message);
+    if (err instanceof ApiError) throw err;
+    if (err.code === "ECONNABORTED") {
+      throw new ApiError(504, "View request timed out. Please try again.");
+    }
+    throw new ApiError(500, "Failed to view report. Please try again later.");
+  }
 });
+
+
 
 /**
  * @desc Delete a report by ID
  * @route DELETE /api/reports/:id
- * @access Patient (only owner)
+ * @access Patient (owner only)
  */
 export const deleteReport = asyncHandler(async (req, res) => {
   const report = await Report.findById(req.params.id);
-
   if (!report) throw new ApiError(404, "Report not found");
 
   if (report.patient.toString() !== req.user.id) {
     throw new ApiError(403, "Not authorized to delete this report");
   }
 
-  if (fs.existsSync(report.fileUrl)) {
-    fs.unlinkSync(report.fileUrl);
+  try {
+    // Extract public_id from fileUrl
+    const segments = report.fileUrl.split("/");
+    const publicIdWithExt = segments.slice(-1)[0].split(".")[0];
+    const publicId = `swasthya-connect/reports/${publicIdWithExt}`;
+
+    await cloudinary.uploader.destroy(publicId, { resource_type: "auto" });
+  } catch (err) {
+    console.warn("⚠️ Could not delete file from Cloudinary:", err.message);
   }
 
   await report.deleteOne();
-  return res
-    .status(200)
-    .json(new ApiResponse(200, null, "Report deleted successfully"));
+  return res.status(200).json(new ApiResponse(200, null, "Report deleted successfully"));
 });
 
 /**
@@ -255,18 +275,16 @@ export const generatePatientReport = asyncHandler(async (req, res) => {
   const patient = await Patient.findById(req.user.id).select("name email city location age");
   if (!patient) throw new ApiError(404, "Patient not found");
 
-  // Fetch appointments with populated doctor
   const appointments = await Appointment.find({ patient: req.user.id })
     .populate("doctor", "name specialization")
     .sort({ date: 1 });
-  
+
   const formattedAppointments = appointments.map(appt => ({
     date: new Date(appt.date).toLocaleDateString("en-GB"),
     doctor: appt.doctor ? appt.doctor.name : "Unknown Doctor",
     status: appt.status || "pending",
   }));
 
-  // Health advice
   const healthAdvice = [
     "Maintain regular exercise",
     "Eat a balanced diet",
@@ -288,26 +306,19 @@ export const generatePatientReport = asyncHandler(async (req, res) => {
 
   const safeName = (patient.name ? patient.name : "patient").replace(/\s+/g, "_");
   const fileName = `${safeName}-report.pdf`;
-  const generatedDir = path.join("uploads", "generated");
-  if (!fs.existsSync(generatedDir)) fs.mkdirSync(generatedDir, { recursive: true });
 
-  const filePath = await generatePDF(reportData, path.join(generatedDir, fileName));
+  const filePath = await generatePDF(reportData, fileName);
 
-  // Send email notification that report is generated
+  // Email notification (non-blocking)
   if (patient?.email) {
-    try {
-      await sendMail(
-        patient.email,
-        "Your Healthcare Report is Ready",
-        `Hello ${patient.name},\n\nYour healthcare report has been generated successfully and is ready for download.\n\nRegards,\nSwasthya Connect`
-      );
-    } catch (emailError) {
-      console.warn("Failed to send email notification:", emailError.message);
-      // Don't block the PDF download if email fails
-    }
+    sendMail(
+      patient.email,
+      "Your Healthcare Report is Ready",
+      `Hello ${patient.name},\n\nYour healthcare report has been generated successfully and is ready for download.\n\nRegards,\nSwasthya Connect`
+    ).catch(err => console.warn("Failed to send email:", err.message));
   }
 
-  res.download(filePath, fileName, (err) => {
+  res.download(filePath, fileName, err => {
     if (err) throw new ApiError(500, "Failed to download PDF");
   });
 });

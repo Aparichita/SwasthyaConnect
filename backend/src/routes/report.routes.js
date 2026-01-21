@@ -17,45 +17,42 @@ import path from "path";
 
 const router = express.Router();
 
-// ✅ Ensure uploads/reports folder exists
+// Ensure upload folder exists (only used for temp upload)
 const uploadDir = path.join("uploads", "reports");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// ✅ Multer storage configuration
+// Multer config
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    // e.g., 1699273847123-CBC-report.pdf
-    cb(null, Date.now() + "-" + file.originalname);
-  },
+  destination: (_, __, cb) => cb(null, uploadDir),
+  filename: (_, file, cb) => cb(null, Date.now() + "-" + file.originalname),
 });
 
-// ✅ Optional: filter only PDFs/images
 const fileFilter = (req, file, cb) => {
-  const allowedTypes = ["application/pdf", "image/jpeg", "image/png"];
-  if (allowedTypes.includes(file.mimetype)) cb(null, true);
-  else cb(new Error("Only PDF or image files are allowed"), false);
+  const allowed = ["application/pdf", "image/jpeg", "image/png"];
+  allowed.includes(file.mimetype)
+    ? cb(null, true)
+    : cb(new Error("Only PDF or image files allowed"), false);
 };
 
 const upload = multer({ storage, fileFilter });
 
-// 📤 Upload a new report (patient only)
+/* ================= ROUTES ================= */
+
+// Upload
 router.post(
   "/",
   verifyToken,
-  authorizeRoles("patient", "doctor"), // allow doctors to upload on behalf of a patient
-  upload.single("file"), // handle file upload
+  authorizeRoles("patient", "doctor"),
+  upload.single("file"),
   uploadReport
 );
 
-// 📄 My reports (patient)
+// My reports
 router.get("/my", verifyToken, authorizeRoles("patient"), getMyReports);
 
-// 📋 Get all reports for a specific patient (patient or doctor)
+// Reports by patient
 router.get(
   "/patient/:patientId",
   verifyToken,
@@ -63,19 +60,22 @@ router.get(
   getReportsByPatient
 );
 
-// 🔍 Get single report by ID
-router.get("/:id", verifyToken, getReportById);
-
-// ⬇️ Download report file (with attachment headers)
+// ⚠️ IMPORTANT: SPECIFIC ROUTES FIRST
+router.get("/:id/view", verifyToken, viewReport);
 router.get("/:id/download", verifyToken, downloadReport);
 
-// 👁️ View report file in browser (with inline headers)
-router.get("/:id/view", verifyToken, viewReport);
+// Generic route LAST
+router.get("/:id", verifyToken, getReportById);
 
-// ❌ Delete report (patient only)
+// Delete
 router.delete("/:id", verifyToken, authorizeRoles("patient"), deleteReport);
 
-// 🧾 Generate PDF
-router.post("/generate", verifyToken, authorizeRoles("patient"), generatePatientReport);
+// Generate PDF
+router.post(
+  "/generate",
+  verifyToken,
+  authorizeRoles("patient"),
+  generatePatientReport
+);
 
 export default router;
