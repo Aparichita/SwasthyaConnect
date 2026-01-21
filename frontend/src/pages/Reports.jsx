@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../components/Layout/DashboardLayout';
 import { reportAPI, patientAPI, gamificationAPI, feedbackAPI, doctorAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import { FileText, Upload, Download, Trash2, Plus, Star } from 'lucide-react';
+import { FileText, Download, Trash2, Plus, Star } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 const Reports = () => {
@@ -12,6 +12,7 @@ const Reports = () => {
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
 
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -89,6 +90,7 @@ const Reports = () => {
       return;
     }
 
+    setUploading(true);
     try {
       const uploadData = new FormData();
       uploadData.append('file', formData.file);
@@ -96,18 +98,20 @@ const Reports = () => {
       uploadData.append('description', formData.description);
       if (isDoctor && selectedPatient) uploadData.append('patient', selectedPatient);
 
-      const res = await reportAPI.upload(uploadData);
-      if (res.data.success || res.data.data) {
+      const res = await reportAPI.upload(uploadData); // ✅ FormData upload without manual Content-Type
+
+      if (res.data?.success || res.data?.data) {
         toast.success('Report uploaded successfully!');
         setShowUploadModal(false);
         setFormData({ reportName: '', description: '', file: null });
         await fetchData();
 
+        // Show feedback modal for patients after upload
         if (isPatient && doctors.length > 0) {
           setTimeout(() => setShowFeedbackModal(true), 800);
         }
 
-        // Award points for patient
+        // Log activity for gamification
         if (isPatient) {
           try {
             await gamificationAPI.logActivity({
@@ -119,6 +123,8 @@ const Reports = () => {
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to upload report');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -130,7 +136,7 @@ const Reports = () => {
     }
     try {
       const res = await feedbackAPI.add(feedbackData);
-      if (res.data.success || res.data.data) {
+      if (res.data?.success || res.data?.data) {
         toast.success('Feedback submitted successfully!');
         setShowFeedbackModal(false);
         setFeedbackData({ doctorId: '', rating: 5, message: '' });
@@ -165,15 +171,11 @@ const Reports = () => {
       toast.info('Opening report...');
       const response = await reportAPI.viewReport(report._id);
 
-      // Ensure we have PDF data
-      if (!response.data || response.data.size === 0) {
-        throw new Error('Empty file received');
-      }
+      if (!response.data || response.data.size === 0) throw new Error('Empty file received');
 
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
 
-      // Open in new tab with embedded iframe for better compatibility
       const newTab = window.open();
       if (newTab) {
         newTab.document.write(
@@ -195,15 +197,11 @@ const Reports = () => {
       toast.info('Downloading report...');
       const response = await reportAPI.downloadReport(report._id);
 
-      // Ensure we have PDF data
-      if (!response.data || response.data.size === 0) {
-        throw new Error('Empty file received');
-      }
+      if (!response.data || response.data.size === 0) throw new Error('Empty file received');
 
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
 
-      // Create download link
       const link = document.createElement('a');
       link.href = url;
       link.download = `${report.reportName || 'report'}.pdf`;
@@ -211,7 +209,6 @@ const Reports = () => {
       link.click();
       document.body.removeChild(link);
 
-      // Cleanup
       window.URL.revokeObjectURL(url);
       toast.success('Report downloaded successfully!');
     } catch (error) {
@@ -222,19 +219,18 @@ const Reports = () => {
   };
 
   // -------------------- Render --------------------
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-        </div>
-      </DashboardLayout>
-    );
-  }
+  if (loading) return (
+    <DashboardLayout>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    </DashboardLayout>
+  );
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Reports</h1>
@@ -322,7 +318,9 @@ const Reports = () => {
                 <textarea placeholder="Description" value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full px-4 py-2 border rounded-lg" rows={3} />
                 <input type="file" onChange={handleFileChange} className="w-full px-4 py-2 border rounded-lg" required />
                 <div className="flex space-x-4">
-                  <button type="submit" className="flex-1 bg-primary-600 text-white py-2 rounded-lg hover:bg-primary-700">Upload</button>
+                  <button type="submit" disabled={uploading} className="flex-1 bg-primary-600 text-white py-2 rounded-lg hover:bg-primary-700 disabled:opacity-50">
+                    {uploading ? 'Uploading...' : 'Upload'}
+                  </button>
                   <button type="button" onClick={() => setShowUploadModal(false)} className="flex-1 bg-gray-200 py-2 rounded-lg hover:bg-gray-300">Cancel</button>
                 </div>
               </form>
@@ -360,6 +358,7 @@ const Reports = () => {
             </div>
           </div>
         )}
+
       </div>
     </DashboardLayout>
   );

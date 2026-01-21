@@ -1,31 +1,25 @@
 import axios from 'axios';
 
 // -------------------- Backend URL --------------------
-// Read from .env file: VITE_API_URL=http://localhost:5000/api
-// If .env doesn't exist, defaults to http://localhost:5000/api
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // Debug: Log API URL (remove in production)
-if (import.meta.env.DEV) {
-  console.log('🔗 API Base URL:', API_URL);
-}
+if (import.meta.env.DEV) console.log('🔗 API Base URL:', API_URL);
 
 // Create axios instance
 const api = axios.create({
   baseURL: API_URL,
   headers: {
-    'Content-Type': 'application/json',
+    'Content-Type': 'application/json', // default for JSON requests
   },
-  timeout: 60000, // 8 second timeout (reduced for faster error feedback)
+  timeout: 60000,
 });
 
 // -------------------- Add token to requests --------------------
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+    if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;
   },
   (error) => Promise.reject(error)
@@ -88,9 +82,9 @@ export const doctorAPI = {
   updateProfile: (data) => api.put('/doctors/me', data),
   getAll: () => api.get('/doctors'),
   getById: (id) => api.get(`/doctors/${id}`),
-  getBySpecialization: (specialization, limit = 5, sortBy = 'rating') => 
+  getBySpecialization: (specialization, limit = 5, sortBy = 'rating') =>
     api.get(`/doctors/specialization/${encodeURIComponent(specialization)}?limit=${limit}&sortBy=${sortBy}`),
-  getSuggestedDoctors: (specialization, limit = 5) => 
+  getSuggestedDoctors: (specialization, limit = 5) =>
     api.get(`/doctors/suggest/${encodeURIComponent(specialization)}?limit=${limit}&sortBy=rating`),
 };
 
@@ -98,19 +92,17 @@ export const doctorAPI = {
 export const appointmentAPI = {
   book: (data) => api.post('/appointments', data),
   getMyAppointments: () => api.get('/appointments/my'),
-
-  // ✅ REQUIRED FOR DOCTOR CHAT
   getDoctorAppointments: () => api.get('/appointments/doctor'),
-
   updateStatus: (id, data) => api.put(`/appointments/${id}`, data),
   delete: (id) => api.delete(`/appointments/${id}`),
 };
 
-
-// Report
+// -------------------- FIXED Report API --------------------
 export const reportAPI = {
-  upload: (formData) =>
-    api.post('/reports', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  // ✅ Upload FormData WITH undefined Content-Type to let axios handle multipart/form-data
+  upload: (formData) => api.post('/reports', formData, { 
+    headers: { 'Content-Type': undefined } // Let axios auto-set multipart/form-data
+  }),
   getMyReports: () => api.get('/reports/my'),
   getByPatient: (patientId) => api.get(`/reports/patient/${patientId}`),
   getById: (id) => api.get(`/reports/${id}`),
@@ -135,13 +127,10 @@ export const notificationAPI = {
   getMyNotifications: () => api.get('/notifications/my'),
   markAsRead: (id) => api.patch(`/notifications/${id}/read`),
   delete: (id) => api.delete(`/notifications/${id}`),
-  sendWhatsAppToPatient: (patientId, data) =>
-    api.post(`/notifications/patient/${patientId}/whatsapp`, data),
-  sendAppointmentReminder: (appointmentId, data) =>
-    api.post(`/notifications/appointment/${appointmentId}/reminder`, data),
+  sendWhatsAppToPatient: (patientId, data) => api.post(`/notifications/patient/${patientId}/whatsapp`, data),
+  sendAppointmentReminder: (appointmentId, data) => api.post(`/notifications/appointment/${appointmentId}/reminder`, data),
   sendBulkReminders: (data) => api.post('/notifications/appointments/bulk-reminders', data),
-  sendUpcomingReminders: (data) =>
-    api.post('/notifications/appointments/upcoming-reminders', data),
+  sendUpcomingReminders: (data) => api.post('/notifications/appointments/upcoming-reminders', data),
 };
 
 // AI
@@ -159,20 +148,16 @@ export const gamificationAPI = {
   getLeaderboard: (limit) => api.get(`/gamification/leaderboard?limit=${limit || 10}`),
   getAchievements: () => api.get('/gamification/achievements'),
   createGoal: (data) => api.post('/gamification/goals', data),
-  updateGoalProgress: (goalId, data) =>
-    api.patch(`/gamification/goals/${goalId}/progress`, data),
+  updateGoalProgress: (goalId, data) => api.patch(`/gamification/goals/${goalId}/progress`, data),
   redeemReward: (data) => api.post('/gamification/redeem-reward', data),
   getRewards: () => api.get('/gamification/rewards'),
 };
 
-
-
-
 // Verification
 export const verificationAPI = {
   sendVerificationEmail: (data) => api.post('/verification/send', data),
-  verifyEmail: (token, email, role) => api.get(`/verification/verify?token=${token}&email=${encodeURIComponent(email)}&role=${role}`),
-  // New simplified verification endpoint (token only in URL)
+  verifyEmail: (token, email, role) =>
+    api.get(`/verification/verify?token=${token}&email=${encodeURIComponent(email)}&role=${role}`),
   verifyEmailByToken: (token) => api.get(`/auth/verify-email/${token}`),
   resendVerification: (data) => api.post('/auth/resend-verification', data),
 };
@@ -180,28 +165,16 @@ export const verificationAPI = {
 // Password Reset
 export const passwordAPI = {
   forgotPassword: (email) => api.post('/auth/forgot-password', { email }),
-  resetPassword: (token, password, confirmPassword) => api.post(`/auth/reset-password/${token}`, { password, confirmPassword }),
+  resetPassword: (token, password, confirmPassword) =>
+    api.post(`/auth/reset-password/${token}`, { password, confirmPassword }),
 };
 
 // Messages
 export const messageAPI = {
-  // Get or create conversation (appointment based)
-  getConversation: (appointmentId) =>
-    api.get(`/messages/conversation/${appointmentId}`),
-
-  // ✅ FIX: Get all conversations for sidebar
-  getMyConversations: () =>
-    api.get("/messages/conversations"),
-
-  // Get messages in a conversation
-  getMessages: (conversationId) =>
-    api.get(`/messages/${conversationId}`),
-
-  // Send message
-  sendMessage: (data) =>
-    api.post("/messages/send", data),
+  getConversation: (appointmentId) => api.get(`/messages/conversation/${appointmentId}`),
+  getMyConversations: () => api.get("/messages/conversations"),
+  getMessages: (conversationId) => api.get(`/messages/${conversationId}`),
+  sendMessage: (data) => api.post("/messages/send", data),
 };
-
-
 
 export default api;

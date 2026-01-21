@@ -1,3 +1,4 @@
+// backend/src/routes/report.routes.js
 import express from "express";
 import {
   uploadReport,
@@ -5,54 +6,31 @@ import {
   getReportById,
   deleteReport,
   getMyReports,
-  generatePatientReport,
   downloadReport,
   viewReport,
+  uploadMiddleware, // <- updated multer middleware
 } from "../controllers/report.controller.js";
+
 import { verifyToken } from "../middlewares/auth.middleware.js";
 import { authorizeRoles } from "../middlewares/role.middleware.js";
-import multer from "multer";
-import fs from "fs";
-import path from "path";
 
 const router = express.Router();
 
-// Ensure upload folder exists (only used for temp upload)
-const uploadDir = path.join("uploads", "reports");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-// Multer config
-const storage = multer.diskStorage({
-  destination: (_, __, cb) => cb(null, uploadDir),
-  filename: (_, file, cb) => cb(null, Date.now() + "-" + file.originalname),
-});
-
-const fileFilter = (req, file, cb) => {
-  const allowed = ["application/pdf", "image/jpeg", "image/png"];
-  allowed.includes(file.mimetype)
-    ? cb(null, true)
-    : cb(new Error("Only PDF or image files allowed"), false);
-};
-
-const upload = multer({ storage, fileFilter });
-
 /* ================= ROUTES ================= */
 
-// Upload
+// 1️⃣ Upload a report (Patient / Doctor)
 router.post(
   "/",
   verifyToken,
   authorizeRoles("patient", "doctor"),
-  upload.single("file"),
+  uploadMiddleware.single("file"), // multer middleware
   uploadReport
 );
 
-// My reports
+// 2️⃣ Get logged-in patient's reports
 router.get("/my", verifyToken, authorizeRoles("patient"), getMyReports);
 
-// Reports by patient
+// 3️⃣ Get reports by patient ID (Patient/Doctor)
 router.get(
   "/patient/:patientId",
   verifyToken,
@@ -60,22 +38,16 @@ router.get(
   getReportsByPatient
 );
 
-// ⚠️ IMPORTANT: SPECIFIC ROUTES FIRST
+// 4️⃣ View report in browser
 router.get("/:id/view", verifyToken, viewReport);
+
+// 5️⃣ Download report file
 router.get("/:id/download", verifyToken, downloadReport);
 
-// Generic route LAST
+// 6️⃣ Get report by ID (generic)
 router.get("/:id", verifyToken, getReportById);
 
-// Delete
+// 7️⃣ Delete a report (Patient only)
 router.delete("/:id", verifyToken, authorizeRoles("patient"), deleteReport);
-
-// Generate PDF
-router.post(
-  "/generate",
-  verifyToken,
-  authorizeRoles("patient"),
-  generatePatientReport
-);
 
 export default router;

@@ -1,3 +1,5 @@
+// backend/src/models/report.model.js - WITH CLOUDINARY SUPPORT
+
 import mongoose from "mongoose";
 
 const reportSchema = new mongoose.Schema(
@@ -16,6 +18,10 @@ const reportSchema = new mongoose.Schema(
       required: [true, "Report name is required"],
       trim: true,
     },
+    reportType: {
+      type: String,
+      default: "Medical Report",
+    },
     description: {
       type: String,
       maxlength: 500,
@@ -23,6 +29,11 @@ const reportSchema = new mongoose.Schema(
     fileUrl: {
       type: String,
       required: [true, "File URL is required"],
+    },
+    // 🔥 NEW: Store Cloudinary public_id for deletion
+    cloudinaryPublicId: {
+      type: String,
+      required: false,
     },
     fileType: {
       type: String,
@@ -34,7 +45,7 @@ const reportSchema = new mongoose.Schema(
       default: Date.now,
     },
     aiInsights: {
-      type: String, // optional field if analyzed by AI model
+      type: String,
     },
   },
   { timestamps: true }
