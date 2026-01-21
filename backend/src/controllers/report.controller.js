@@ -53,24 +53,26 @@ export const uploadReport = asyncHandler(async (req, res) => {
     fileUrl: req.file.path,
   });
 
-  // Send email notification
-  const patient = await Patient.findById(patientId).select("name email");
-  if (patient?.email) {
-    try {
-      await sendMail(
-        patient.email,
-        "Report Uploaded Successfully",
-        `Hello ${patient.name},\n\nYour report "${report.reportName}" has been uploaded successfully.\n\nRegards,\nSwasthya Connect`
-      );
-    } catch (emailError) {
-      console.warn("Failed to send email notification:", emailError.message);
-      // Don't block the report upload if email fails
-    }
-  }
-
-  return res
+  // ✅ Send response IMMEDIATELY
+  res
     .status(201)
-    .json(new ApiResponse(201, report, "Report uploaded and email sent successfully"));
+    .json(new ApiResponse(201, report, "Report uploaded successfully"));
+
+  // 🔄 Send email in background (non-blocking)
+  if (patient?.email) {
+    sendMail(
+      patient.email,
+      "Report Uploaded Successfully",
+      `Hello ${patient.name},\n\nYour report "${report.reportName}" has been uploaded successfully.\n\nRegards,\nSwasthya Connect`
+    )
+      .then(() => {
+        console.log("📧 Report upload email sent to:", patient.email);
+      })
+      .catch((emailError) => {
+        console.error("⚠️ Failed to send report email:", emailError.message);
+        // Don't block the report upload if email fails
+      });
+  }
 });
 
 /**
