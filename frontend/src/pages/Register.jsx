@@ -446,7 +446,7 @@ const handleSubmit = async (e) => {
 
             {/* Error & Success messages */}
             {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg"><p>{error}</p></div>}
-            {success && <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg"><p>✅ Registration Successful! Check your email for verification.</p></div>}
+            {success && <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg"><p>✅ Registration Successful! Redirecting to login...</p></div>}
 
             <button
               type="submit"
