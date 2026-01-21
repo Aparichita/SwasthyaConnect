@@ -105,22 +105,25 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     </html>
   `;
 
-  // Send email asynchronously
-  try {
-    await sendMail({
-      to: email,
-      subject: "Reset Your Password - SwasthyaConnect",
-      html: emailHtml,
-      text: `Please reset your password by clicking this link: ${resetUrl}. This link expires in 1 hour.`,
-    });
+  // Send email response immediately (non-blocking for Render free tier)
+  res.status(200).json(
+    new ApiResponse(200, {}, "If an account with that email exists, a password reset link has been sent.")
+  );
 
-    res.status(200).json(
-      new ApiResponse(200, {}, "If an account with that email exists, a password reset link has been sent.")
-    );
-  } catch (error) {
-    console.error("Failed to send password reset email:", error);
-    throw new ApiError(500, "Failed to send password reset email. Please try again later.");
-  }
+  // Send email in background (fire & forget pattern)
+  sendMail({
+    to: email,
+    subject: "Reset Your Password - SwasthyaConnect",
+    html: emailHtml,
+    text: `Please reset your password by clicking this link: ${resetUrl}. This link expires in 1 hour.`,
+  })
+    .then(() => {
+      console.log(`✅ Password reset email sent to ${email}`);
+    })
+    .catch((error) => {
+      console.error(`⚠️ Failed to send password reset email to ${email}:`, error);
+      // Non-blocking: error is logged but doesn't break user experience
+    });
 });
 
 /**

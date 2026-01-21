@@ -154,9 +154,10 @@ export const downloadReport = asyncHandler(async (req, res) => {
     throw new ApiError(403, "Not authorized to download this report");
   }
 
-  // Check if file exists
+  // Check if file exists (graceful handling for Render ephemeral storage)
   if (!fs.existsSync(report.fileUrl)) {
-    throw new ApiError(404, "Report file not found on server");
+    console.warn("⚠️ Report file not found (Render ephemeral storage)");
+    return res.status(200).json(new ApiResponse(200, { reportName: report.reportName }, "Report metadata found but file unavailable on server (it may have been cleared during deployment)."));
   }
 
   // Set headers for file download
@@ -197,9 +198,10 @@ export const viewReport = asyncHandler(async (req, res) => {
     throw new ApiError(403, "Not authorized to view this report");
   }
 
-  // Check if file exists
+  // Check if file exists (graceful handling for Render ephemeral storage)
   if (!fs.existsSync(report.fileUrl)) {
-    throw new ApiError(404, "Report file not found on server");
+    console.warn("⚠️ Report file not found (Render ephemeral storage)");
+    return res.status(200).json(new ApiResponse(200, { reportName: report.reportName }, "Report metadata found but file unavailable on server (it may have been cleared during deployment)."));
   }
 
   // Set headers for inline viewing (not download)
