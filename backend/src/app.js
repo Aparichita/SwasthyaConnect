@@ -24,10 +24,6 @@ import verificationRoutes from "./routes/verification.routes.js";
 import messageRoutes from "./routes/message.routes.js";
 import testRoutes from "./routes/test.routes.js";
 
-
-
-
-
 // Middlewares
 import { errorHandler } from "./middlewares/error.middleware.js";
 
@@ -38,44 +34,46 @@ const app = express();
 // ✅ Enhanced CORS configuration
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
-    // List of allowed origins
+
     const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:5173',
-      'http://localhost:5174',
-      'http://localhost:5175',
-      'http://127.0.0.1:3000',
-      'http://127.0.0.1:5173',
-      'http://127.0.0.1:5174',
-      'http://127.0.0.1:5175',
+      "http://localhost:3000",
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "http://localhost:5175",
+      "http://127.0.0.1:3000",
+      "http://127.0.0.1:5173",
+      "http://127.0.0.1:5174",
+      "http://127.0.0.1:5175",
     ];
-    
-    // Check if origin is allowed or contains localhost/127.0.0.1
-    if (allowedOrigins.includes(origin) || 
-        origin.includes('localhost') || 
-        origin.includes('127.0.0.1')) {
+
+    if (
+      allowedOrigins.includes(origin) ||
+      origin.includes("localhost") ||
+      origin.includes("127.0.0.1")
+    ) {
       callback(null, true);
     } else {
-      callback(null, true); // Allow all for development
+      callback(null, true); // Allow all (dev-safe)
     }
   },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['Content-Length', 'Content-Type'],
-  maxAge: 86400, // 24 hours
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  exposedHeaders: ["Content-Length", "Content-Type"],
+  maxAge: 86400,
 }));
 
-// ✅ Body parsing middlewares
-app.use(express.json({ limit: '50mb' })); // Increased limit for file uploads
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// ✅ Body parsing
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
-// ✅ Serve static files (uploads and public images)
+// ✅ Static files
 app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
-app.use("/images", express.static(path.join(__dirname, "..", "..", "frontend", "public", "images")));
+app.use(
+  "/images",
+  express.static(path.join(__dirname, "..", "..", "frontend", "public", "images"))
+);
 
 // ✅ API Routes
 app.use("/api/auth", authRoutes);
@@ -92,32 +90,24 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/mail", mailRoutes);
 app.use("/api/whatsapp", whatsappRoutes);
 
-
-// ✅ Health check route with detailed info
+// ✅ Health check — GET (for browsers / manual checks)
 app.get("/api/health", (req, res) => {
-  res.status(200).json({ 
-    status: "success", 
+  res.status(200).json({
+    status: "success",
     message: "API is running 🚀",
     timestamp: new Date().toISOString(),
-    routes: {
-      auth: "/api/auth",
-      doctors: "/api/doctors",
-      patients: "/api/patients",
-      appointments: "/api/appointments",
-      reports: "/api/reports",
-      feedback: "/api/feedback",
-      notifications: "/api/notifications",
-      gamification: "/api/gamification",
-      verification: "/api/verification",
-      messages: "/api/messages",
-      mail: "/api/mail",
-      whatsapp: "/api/whatsapp",
-      ai: "/api/ai"
-    }
   });
 });
+
+// ✅ Health check — HEAD (REQUIRED for UptimeRobot)
+app.head("/api/health", (req, res) => {
+  res.status(200).end();
+});
+
+// Test routes
 app.use("/api", testRoutes);
-// ✅ 404 handler for unknown routes
+
+// ✅ 404 handler
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -131,12 +121,12 @@ app.use((req, res) => {
       "/api/reports",
       "/api/feedback",
       "/api/notifications",
-      "/api/health"
-    ]
+      "/api/health",
+    ],
   });
 });
 
-// ✅ Global Error Handler (must be last)
+// ✅ Global Error Handler
 app.use(errorHandler);
 
 export default app;
