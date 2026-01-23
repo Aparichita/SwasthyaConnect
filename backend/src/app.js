@@ -9,6 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Routes
+import healthRoutes from "./routes/health.routes.js"; // ✅ Register FIRST (before heavy routes)
 import authRoutes from "./routes/auth.routes.js";
 import aiRoutes from "./routes/ai.routes.js";
 import doctorRoutes from "./routes/doctor.routes.js";
@@ -64,6 +65,10 @@ app.use(cors({
   maxAge: 86400,
 }));
 
+// ✅ Health check route (registered EARLY - before heavy middleware/routes)
+// This ensures UptimeRobot/Render health checks don't timeout on cold starts
+app.use("/", healthRoutes);
+
 // ✅ Body parsing
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
@@ -90,7 +95,8 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/mail", mailRoutes);
 app.use("/api/whatsapp", whatsappRoutes);
 
-// ✅ Health check — GET (for browsers / manual checks)
+// ✅ Legacy health check at /api/health (kept for backward compatibility)
+// Note: Primary health endpoint is now at /health (registered early above)
 app.get("/api/health", (req, res) => {
   res.status(200).json({
     status: "success",
@@ -99,7 +105,6 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// ✅ Health check — HEAD (REQUIRED for UptimeRobot)
 app.head("/api/health", (req, res) => {
   res.status(200).end();
 });

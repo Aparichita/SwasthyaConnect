@@ -110,7 +110,8 @@ const server = app.listen(PORT, () => {
   console.log(`\n🚀 Server running on port ${PORT}`);
   console.log(`📝 Environment: ${process.env.NODE_ENV || "development"}`);
   console.log(`\n✅ API endpoints are available at http://localhost:${PORT}/api`);
-  console.log(`✅ Health check: http://localhost:${PORT}/api/health\n`);
+  console.log(`✅ Health check (primary): http://localhost:${PORT}/health`);
+  console.log(`✅ Health check (legacy): http://localhost:${PORT}/api/health\n`);
   
   // Show available routes
   console.log("📋 Available API Routes:");
