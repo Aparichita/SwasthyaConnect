@@ -10,6 +10,7 @@ const Feedback = () => {
   const [feedbacks, setFeedbacks] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState({
     doctorId: '',
@@ -41,6 +42,7 @@ const Feedback = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
     const trimmedMessage = formData.message.trim();
 
     if (isPatient && !formData.doctorId) {
@@ -54,6 +56,7 @@ const Feedback = () => {
       rating: formData.rating,
     };
 
+    setSubmitting(true);
     try {
       const response = await feedbackAPI.add(payload);
       
@@ -84,6 +87,8 @@ const Feedback = () => {
     } catch (error) {
       console.error('❌ Feedback submission error:', error);
       toast.error(error.response?.data?.message || error.message || 'Failed to submit feedback');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -258,9 +263,10 @@ const Feedback = () => {
                 <div className="flex space-x-4">
                   <button
                     type="submit"
-                    className="flex-1 bg-primary-600 text-white py-2 rounded-lg hover:bg-primary-700"
+                    disabled={submitting}
+                    className="flex-1 bg-primary-600 text-white py-2 rounded-lg hover:bg-primary-700 disabled:opacity-50"
                   >
-                    Submit
+                    {submitting ? 'Submitting...' : 'Submit'}
                   </button>
                   <button
                     type="button"

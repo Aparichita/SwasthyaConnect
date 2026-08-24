@@ -15,6 +15,7 @@ const DoctorMessages = () => {
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
+  const [sending, setSending] = useState(false);
 
   const socketRef = useRef(null);
   const bottomRef = useRef(null);
@@ -99,8 +100,9 @@ const DoctorMessages = () => {
   /* ---------- SEND MESSAGE ---------- */
   const sendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || !conversation) return;
+    if (!newMessage.trim() || !conversation || sending) return;
 
+    setSending(true);
     try {
       const res = await messageAPI.sendMessage({
         conversationId: conversation._id,
@@ -122,6 +124,8 @@ const DoctorMessages = () => {
       socketRef.current?.emit("sendMessage", msg);
     } catch {
       toast.error("Message failed");
+    } finally {
+      setSending(false);
     }
   };
 
@@ -177,10 +181,10 @@ const DoctorMessages = () => {
           />
           <button
             type="submit"
-            disabled={!newMessage.trim()}
+            disabled={!newMessage.trim() || sending}
             className="bg-primary-600 text-white px-6 rounded-xl hover:bg-primary-700 disabled:opacity-50"
           >
-            <Send />
+            {sending ? "Sending..." : <Send />}
           </button>
         </form>
 

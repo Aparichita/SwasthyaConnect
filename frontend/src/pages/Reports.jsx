@@ -13,6 +13,7 @@ const Reports = () => {
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
@@ -130,10 +131,12 @@ const Reports = () => {
 
   const handleFeedbackSubmit = async (e) => {
     e.preventDefault();
+    if (submittingFeedback) return;
     if (!feedbackData.doctorId) {
       toast.error('Please select a doctor');
       return;
     }
+    setSubmittingFeedback(true);
     try {
       const res = await feedbackAPI.add(feedbackData);
       if (res.data?.success || res.data?.data) {
@@ -152,6 +155,8 @@ const Reports = () => {
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to submit feedback');
+    } finally {
+      setSubmittingFeedback(false);
     }
   };
 
@@ -351,7 +356,7 @@ const Reports = () => {
                 </div>
                 <textarea placeholder="Message (optional)" value={feedbackData.message} onChange={(e) => setFeedbackData({ ...feedbackData, message: e.target.value })} className="w-full px-4 py-2 border rounded-lg" rows={3} />
                 <div className="flex space-x-4">
-                  <button type="submit" disabled={!feedbackData.doctorId} className="flex-1 bg-primary-600 text-white py-2 rounded-lg hover:bg-primary-700 disabled:opacity-50">Submit Feedback</button>
+                  <button type="submit" disabled={!feedbackData.doctorId || submittingFeedback} className="flex-1 bg-primary-600 text-white py-2 rounded-lg hover:bg-primary-700 disabled:opacity-50">{submittingFeedback ? 'Submitting...' : 'Submit Feedback'}</button>
                   <button type="button" onClick={() => setShowFeedbackModal(false)} className="flex-1 bg-gray-200 py-2 rounded-lg hover:bg-gray-300">Skip</button>
                 </div>
               </form>

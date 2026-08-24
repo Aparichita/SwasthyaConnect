@@ -14,6 +14,7 @@ const Predict = () => {
     BP: ''
   });
   const [loading, setLoading] = useState(false);
+  const [booking, setBooking] = useState(false);
   const [result, setResult] = useState(null);
 
   const handleChange = (e) => {
@@ -54,7 +55,7 @@ const Predict = () => {
   };
 
   const handleBookAppointment = async () => {
-    if (!result?.predicted_disease) return;
+    if (!result?.predicted_disease || booking) return;
 
     const appointmentData = {
       patientId: user?._id || user?.id,
@@ -63,6 +64,7 @@ const Predict = () => {
       preferredDate: new Date().toISOString() // optionally allow user to pick date
     };
 
+    setBooking(true);
     try {
       const res = await appointmentAPI.book(appointmentData);
       if (res.data?.success) {
@@ -73,6 +75,8 @@ const Predict = () => {
     } catch (err) {
       console.error(err);
       toast.error('Failed to book appointment.');
+    } finally {
+      setBooking(false);
     }
   };
 
@@ -111,9 +115,10 @@ const Predict = () => {
           <p><strong>Risk Category:</strong> {result.risk_category}</p>
           <button
             onClick={handleBookAppointment}
+            disabled={booking}
             className="mt-3 py-2 px-4 bg-green-600 text-white rounded hover:bg-green-700"
           >
-            Book Appointment
+            {booking ? 'Booking...' : 'Book Appointment'}
           </button>
         </div>
       )}

@@ -164,11 +164,10 @@ export const loginUser = asyncHandler(async (req, res) => {
 
     console.log("📧 Sending verification email to unverified user:", email);
     
-    try {
-      await sendMail({
-        to: email,
-        subject: "Verify Your SwasthyaConnect Account",
-        html: `
+    sendMail({
+      to: email,
+      subject: "Verify Your SwasthyaConnect Account",
+      html: `
           <!DOCTYPE html>
           <html>
           <head>
@@ -197,13 +196,12 @@ export const loginUser = asyncHandler(async (req, res) => {
           </body>
           </html>
         `,
-        text: `Please verify your email: ${verificationUrl}`,
+      text: `Please verify your email: ${verificationUrl}`,
+    })
+      .then(() => console.log("✅ Verification email sent to:", email))
+      .catch((emailError) => {
+        console.error("❌ Failed to send verification email:", emailError);
       });
-      
-      console.log("✅ Verification email sent to:", email);
-    } catch (emailError) {
-      console.error("❌ Failed to send verification email:", emailError);
-    }
 
     return res.status(403).json({
       success: false,

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -306,9 +306,36 @@ function AppRoutes() {
 }
 
 function App() {
+  const [slowRequests, setSlowRequests] = useState(() => new Set());
+
+  useEffect(() => {
+    const handleSlowRequest = (event) => {
+      setSlowRequests((current) => new Set(current).add(event.detail.requestId));
+    };
+    const handleRequestEnd = (event) => {
+      setSlowRequests((current) => {
+        const next = new Set(current);
+        next.delete(event.detail.requestId);
+        return next;
+      });
+    };
+
+    window.addEventListener('api:request-slow', handleSlowRequest);
+    window.addEventListener('api:request-end', handleRequestEnd);
+    return () => {
+      window.removeEventListener('api:request-slow', handleSlowRequest);
+      window.removeEventListener('api:request-end', handleRequestEnd);
+    };
+  }, []);
+
   return (
     <Router>
       <AuthProvider>
+        {slowRequests.size > 0 && (
+          <div className="fixed top-0 left-0 right-0 z-[100] bg-amber-100 px-4 py-3 text-center text-sm text-amber-900 shadow-md">
+            Waking the server up - the backend is on a free tier and sleeps when idle. This can take up to 30 seconds.
+          </div>
+        )}
         <AppRoutes />
         <ToastContainer
           position="top-right"

@@ -28,16 +28,14 @@ export const createNotification = asyncHandler(async (req, res) => {
 
   // Send email if email is provided
   if (email) {
-    try {
-      await sendMail({
-        to: email,
-        subject: `New Notification: ${title}`,
-        text: message,
-        html: `<h3>${title}</h3><p>${message}</p>`,
-      });
-    } catch (err) {
+    sendMail({
+      to: email,
+      subject: `New Notification: ${title}`,
+      text: message,
+      html: `<h3>${title}</h3><p>${message}</p>`,
+    }).catch((err) => {
       console.warn("Failed to send notification email:", err.message);
-    }
+    });
   }
 
   return res

@@ -2,6 +2,13 @@ import axios from 'axios';
 
 // -------------------- Backend URL --------------------
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+let requestSequence = 0;
+
+const dispatchRequestEvent = (name, requestId) => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(name, { detail: { requestId } }));
+  }
+};
 
 // Debug: Log API URL (remove in production)
 if (import.meta.env.DEV) console.log('🔗 API Base URL:', API_URL);
@@ -18,6 +25,12 @@ const api = axios.create({
 // -------------------- Add token to requests --------------------
 api.interceptors.request.use(
   (config) => {
+    const requestId = ++requestSequence;
+    config.metadata = { requestId };
+    config.slowRequestTimer = window.setTimeout(() => {
+      dispatchRequestEvent('api:request-slow', requestId);
+    }, 3000);
+
     const token = localStorage.getItem('token');
     if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;
@@ -27,8 +40,17 @@ api.interceptors.request.use(
 
 // -------------------- Handle response errors --------------------
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    window.clearTimeout(response.config.slowRequestTimer);
+    dispatchRequestEvent('api:request-end', response.config.metadata?.requestId);
+    return response;
+  },
   (error) => {
+    if (error.config) {
+      window.clearTimeout(error.config.slowRequestTimer);
+      dispatchRequestEvent('api:request-end', error.config.metadata?.requestId);
+    }
+
     if (error.code === 'ERR_NETWORK' || error.message === 'Network Error') {
       console.error('Network Error:', {
         message: 'Cannot connect to backend server',
